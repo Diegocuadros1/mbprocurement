@@ -45,7 +45,7 @@ export const CTA = () => {
               </p>
 
               {/* Contact info */}
-              <div className="space-y-4">
+              {/* <div className="space-y-4">
                 <div className="flex items-center gap-3 text-primary-foreground/80">
                   <div className="w-10 h-10 rounded-lg bg-accent/20 flex items-center justify-center">
                     <Mail className="w-5 h-5 text-accent" />
@@ -58,7 +58,7 @@ export const CTA = () => {
                   </div>
                   <span>Schedule a call</span>
                 </div>
-              </div>
+              </div> */}
             </motion.div>
 
             {/* Right - CTA Card */}
@@ -78,7 +78,11 @@ export const CTA = () => {
 
               <div className="space-y-4">
                 <Link href="/contact">
-                  <Button variant="hero" size="xl" className="w-full">
+                  <Button
+                    variant="hero"
+                    size="xl"
+                    className="w-full cursor-pointer"
+                  >
                     Join Us Today
                     <ArrowRight className="w-5 h-5" />
                   </Button>

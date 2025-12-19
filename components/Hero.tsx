@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
+import Link from "next/link";
 
 const highlights = [
   "Total control of your procurement",
@@ -40,7 +41,7 @@ export const Hero = () => {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6"
             >
               <span className="animate-pulse">🚀</span>
-              Created by a Founder to Support Founders
+              Created by a Scientist to Support Science
             </motion.div>
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight mb-6 text-balance">
@@ -92,13 +93,17 @@ export const Hero = () => {
               transition={{ delay: 0.6, duration: 0.5 }}
               className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start"
             >
-              <Button variant="hero" size="xl">
-                Discover Your Savings
-                <ArrowRight className="w-5 h-5" />
-              </Button>
-              <Button variant="hero-outline" size="xl">
-                Learn More
-              </Button>
+              <Link href="#process">
+                <Button variant="hero" size="xl">
+                  Learn More
+                  <ArrowRight className="w-5 h-5" />
+                </Button>
+              </Link>
+              <Link href="/contact">
+                <Button variant="hero-outline" size="xl">
+                  Contact Us
+                </Button>
+              </Link>
             </motion.div>
           </motion.div>
 
@@ -127,7 +132,7 @@ export const Hero = () => {
               </div>
 
               {/* Floating card */}
-              <motion.div
+              {/* <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.8, duration: 0.6 }}
@@ -144,7 +149,7 @@ export const Hero = () => {
                     <p className="text-xl font-bold text-foreground">15-25%</p>
                   </div>
                 </div>
-              </motion.div>
+              </motion.div> */}
 
               {/* Another floating element */}
               <motion.div

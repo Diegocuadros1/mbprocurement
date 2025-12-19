@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Phone, Mail, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import emailjs from "@emailjs/browser";
 
 const contactInfo = [
   {
@@ -18,12 +19,16 @@ const contactInfo = [
   {
     icon: Phone,
     title: "Phone",
-    details: ["(510) 345-5242"],
+    details: ["Diego Alcala: (562)-704-9157", "Ali Darwish: (512)-581-1996"],
   },
   {
     icon: Mail,
-    title: "Email",
-    details: ["hello@MissionBoosterProcurement.com"],
+    title: "Emails",
+    details: [
+      "david.Kiewlich@badasslabs.org",
+      "dalcala@mbprocurement.com",
+      "adarwish@mbprocurement.com",
+    ],
   },
 ];
 
@@ -41,16 +46,60 @@ const Contact = () => {
     e.preventDefault();
     setIsSubmitting(true);
 
+    try {
+      await emailjs.send(
+        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
+        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
+        {
+          name: `${formData.firstName}${
+            formData.lastName ? " " + formData.lastName : ""
+          }`,
+          email: formData.email,
+          message: formData.message,
+        },
+        {
+          publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
+        }
+      );
+
+      toast({
+        title: "Message sent!",
+        description: "We'll get back to you as soon as possible.",
+      });
+
+      setIsSubmitting(false);
+      setFormData({ firstName: "", lastName: "", email: "", message: "" });
+    } catch (error) {
+      console.error("EmailJS error:", error);
+      toast({
+        title: "Something went wrong",
+        description: "Please try emailing us directly. Sorry about that!",
+      });
+    }
+
     // Simulate form submission
-    await new Promise((resolve) => setTimeout(resolve, 1000));
+    // const res = await fetch("/api/contact", {
+    //   method: "POST",
+    //   headers: { "Content-Type": "application/json" },
+    //   body: JSON.stringify(formData),
+    // });
 
-    toast({
-      title: "Message sent!",
-      description: "We'll get back to you as soon as possible.",
-    });
+    // if (!res.ok) {
+    //   toast({
+    //     title: "Something went wrong",
+    //     description: "Please try again in a moment.",
+    //   });
+    //   setIsSubmitting(false);
+    //   return;
+    // }
 
-    setFormData({ firstName: "", lastName: "", email: "", message: "" });
-    setIsSubmitting(false);
+    // toast({
+    //   title: "Message sent!",
+    //   description: "We'll get back to you as soon as possible.",
+    // });
+
+    // setFormData({ firstName: "", lastName: "", email: "", message: "" });
+    // setIsSubmitting(false);
   };
 
   return (

@@ -30,6 +30,38 @@ const values = [
   },
 ];
 
+const employees = [
+  {
+    name: "David Kielich",
+    role: "Product Owner",
+    bio: "",
+    tags: [],
+    imageURL: "/david_kielich.png",
+    linkedIn: "https://www.linkedin.com/in/davidkiewlich/",
+    email: "david.Kiewlich@badasslabs.org",
+  },
+  {
+    name: "Ali Darwish",
+    role: "Program Director",
+    bio: "",
+    tags: [],
+    imageURL: "/ali_darwish.png",
+    linkedIn: "https://www.linkedin.com/in/alidarwish1",
+    email: "adarwish@mbprocurement.com",
+    phone: "(512)-581-1996",
+  },
+  {
+    name: "Diego Alcala",
+    role: "Program Director",
+    bio: "",
+    tags: [],
+    imageURL: "/diego_alcala.png",
+    linkedIn: "https://www.linkedin.com/in/diego-alcala-416915297",
+    email: "dalcala@mbprocurement.com",
+    phone: "(562)-704-9157",
+  },
+];
+
 const About = () => {
   return (
     <div className="min-h-screen bg-background">
@@ -48,8 +80,8 @@ const About = () => {
               About Us
             </span>
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
-              Developed By a Founder,{" "}
-              <span className="text-accent">to Support Founders</span>
+              Created by Scientists,{" "}
+              <span className="text-accent">to Support Science</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
               At Mission Booster Procurement, we optimize the procurement
@@ -82,8 +114,8 @@ const About = () => {
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
                 Mission Booster Procurement was born from our founder's
-                experience. Launching 6 startups of his own showed our founder,
-                Dr. David Kielich, that procurement is critical to best-in-class
+                experience. Launching 6 startups of his own showed Dr. David
+                Kielich, that procurement is critical to best-in-class
                 operations management. Worrying about losing control only
                 resulted in stolen productivity, time, and focus.
               </p>
@@ -94,7 +126,7 @@ const About = () => {
 
               <div className="my-12 p-8 bg-primary/5 rounded-2xl border border-primary/10">
                 <h3 className="text-2xl font-bold text-foreground mb-4">
-                  He started with a simple goal: Empower Founders to focus on
+                  He started with a simple goal: Empower Scientists to focus on
                   what truly matters
                 </h3>
                 <p className="text-muted-foreground text-lg">
@@ -208,29 +240,7 @@ const About = () => {
 
           {/* Team list (stacked) */}
           <div className="flex flex-col gap-6 max-w-4xl mx-auto">
-            {[
-              {
-                name: "David Kielich",
-                role: "Role / Title",
-                bio: "1–2 sentence bio placeholder",
-                tags: [],
-                imageURL: "/david_kielich.png",
-              },
-              {
-                name: "Ali Darwish",
-                role: "Role / Title",
-                bio: "1–2 sentence bio placeholder",
-                tags: [],
-                imageURL: "/ali_darwish.png",
-              },
-              {
-                name: "Diego Alcala",
-                role: "Role / Title",
-                bio: "1–2 sentence bio placeholder",
-                tags: [],
-                imageURL: "/diego_alcala.png",
-              },
-            ].map((member, index) => (
+            {employees.map((member, index) => (
               <motion.div
                 key={`${member.name}-${index}`}
                 initial={{ opacity: 0, y: 18 }}
@@ -266,17 +276,27 @@ const About = () => {
                       {/* Links placeholder */}
                       <div className="flex items-center gap-3">
                         <a
-                          href="#"
+                          href={member.linkedIn}
                           className="text-sm font-medium text-accent hover:underline underline-offset-4"
                         >
                           LinkedIn
                         </a>
                         <span className="text-muted-foreground/50">•</span>
                         <a
-                          href="#"
+                          href={`mailto:${member.email}`}
                           className="text-sm font-medium text-accent hover:underline underline-offset-4"
                         >
-                          Email
+                          {member.email}
+                        </a>
+                        {member.phone && (
+                          <span className="text-muted-foreground/50">•</span>
+                        )}
+
+                        <a
+                          href={`tel:${member.phone}`}
+                          className="text-sm font-medium text-accent hover:underline underline-offset-4"
+                        >
+                          {member.phone}
                         </a>
                       </div>
                     </div>
@@ -359,8 +379,8 @@ const About = () => {
               Join Us and Experience Procurement Reimagined
             </h2>
             <p className="text-lg text-muted-foreground mb-8">
-              Built for Founders, by Founders. Your investors want this. You
-              deserve this support.
+              Created for Scientists, to support Scientists. Your investors want
+              this. You deserve this support.
             </p>
             <a
               href="/contact"
