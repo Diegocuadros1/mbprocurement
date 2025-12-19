@@ -75,31 +75,8 @@ const Contact = () => {
         title: "Something went wrong",
         description: "Please try emailing us directly. Sorry about that!",
       });
+      setIsSubmitting(false);
     }
-
-    // Simulate form submission
-    // const res = await fetch("/api/contact", {
-    //   method: "POST",
-    //   headers: { "Content-Type": "application/json" },
-    //   body: JSON.stringify(formData),
-    // });
-
-    // if (!res.ok) {
-    //   toast({
-    //     title: "Something went wrong",
-    //     description: "Please try again in a moment.",
-    //   });
-    //   setIsSubmitting(false);
-    //   return;
-    // }
-
-    // toast({
-    //   title: "Message sent!",
-    //   description: "We'll get back to you as soon as possible.",
-    // });
-
-    // setFormData({ firstName: "", lastName: "", email: "", message: "" });
-    // setIsSubmitting(false);
   };
 
   return (
