@@ -16,7 +16,22 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Mission Booster Procurement",
-  description: "For Founders, by Founders",
+  description: "Made by Scientists, for Science",
+  openGraph: {
+    title: "Mission Booster Procurement",
+    description: "Made by Scientists, for Science",
+    url: "https://mbprocurement.com",
+    siteName: "Mission Booster Procurement",
+    images: [
+      {
+        url: "FAQ.png",
+        width: 600,
+        height: 450,
+        alt: "Mission Booster Procurement",
+      },
+    ],
+    type: "website",
+  },
 };
 
 export default function RootLayout({
