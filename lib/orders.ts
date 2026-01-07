@@ -39,3 +39,39 @@ export async function fetchCompanyOrders(companyId: string): Promise<CompanyOrde
 
   return (data ?? []) as CompanyOrder[];
 }
+
+export async function fetchOrderById(orderId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      company_id,
+      order_date,
+      order_time,
+      total_cost,
+      is_placed,
+      placed_at,
+      created_at,
+      order_items (
+        id,
+        supplier_name,
+        item_number,
+        description,
+        item_link,
+        units,
+        unit_of_measure,
+        unit_price,
+        is_ordered,
+        ordered_at,
+        line_total,
+        delivered_price
+      )
+    `)
+    .eq("id", orderId)
+    .single();
+
+  if (error) throw new Error(error.message);
+  return data;
+}

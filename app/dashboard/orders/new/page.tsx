@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ExternalLink, Plus, Trash2 } from "lucide-react";
@@ -26,6 +26,9 @@ import {
 } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 
+import { useToast } from "@/hooks/use-toast";
+import { submitOrderAction } from "@/lib/orders/actions";
+
 type OrderItem = {
   id: string;
   supplierName: string;
@@ -35,7 +38,6 @@ type OrderItem = {
   units: number;
   uom: string;
   unitPrice: number;
-  deliveredPrice: number;
 };
 
 const money = (n: number) =>
@@ -52,9 +54,13 @@ const normalizeUrl = (raw: string) => {
 
 export default function NewOrderPage() {
   const router = useRouter();
+  const { toast } = useToast();
+
+  const [isPending, startTransition] = useTransition();
 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   // Modal form state
   const [supplierName, setSupplierName] = useState("");
@@ -64,12 +70,6 @@ export default function NewOrderPage() {
   const [units, setUnits] = useState<string>("1");
   const [uom, setUom] = useState("");
   const [unitPrice, setUnitPrice] = useState<string>("");
-  const [deliveredPrice, setDeliveredPrice] = useState<string>("");
-
-  const totalDelivered = useMemo(
-    () => items.reduce((acc, it) => acc + (it.deliveredPrice ?? 0), 0),
-    [items]
-  );
 
   const resetForm = () => {
     setSupplierName("");
@@ -79,26 +79,48 @@ export default function NewOrderPage() {
     setUnits("1");
     setUom("");
     setUnitPrice("");
-    setDeliveredPrice("");
   };
 
   const removeItem = (id: string) => {
     setItems((prev) => prev.filter((x) => x.id !== id));
   };
 
+  const inputErrorsNotify = () => {
+    toast({
+      title: "Input Error",
+      description: "Please fill out all required fields.",
+    });
+  };
+
   const onAddItem = () => {
     const unitsNum = Number(units);
     const unitPriceNum = Number(unitPrice);
-    const deliveredPriceNum = Number(deliveredPrice);
 
     // very lightweight validation (feel free to tighten)
-    if (!supplierName.trim()) return;
-    if (!sku.trim()) return;
-    if (!description.trim()) return;
-    if (!Number.isFinite(unitsNum) || unitsNum <= 0) return;
-    if (!uom.trim()) return;
-    if (!Number.isFinite(unitPriceNum) || unitPriceNum < 0) return;
-    if (!Number.isFinite(deliveredPriceNum) || deliveredPriceNum < 0) return;
+    if (!supplierName.trim()) {
+      inputErrorsNotify();
+      return;
+    }
+    if (!sku.trim()) {
+      inputErrorsNotify();
+      return;
+    }
+    if (!description.trim()) {
+      inputErrorsNotify();
+      return;
+    }
+    if (!Number.isFinite(unitsNum) || unitsNum <= 0) {
+      inputErrorsNotify();
+      return;
+    }
+    if (!uom.trim()) {
+      inputErrorsNotify();
+      return;
+    }
+    if (!Number.isFinite(unitPriceNum) || unitPriceNum < 0) {
+      inputErrorsNotify();
+      return;
+    }
 
     const id =
       typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -114,12 +136,44 @@ export default function NewOrderPage() {
       units: unitsNum,
       uom: uom.trim(),
       unitPrice: unitPriceNum,
-      deliveredPrice: deliveredPriceNum,
     };
 
     setItems((prev) => [next, ...prev]);
     resetForm();
     setOpen(false);
+  };
+
+  const handleSubmitOrder = () => {
+    if (items.length === 0) return;
+
+    startTransition(async () => {
+      try {
+        const { orderId } = await submitOrderAction(
+          items.map((it) => ({
+            supplierName: it.supplierName,
+            sku: it.sku,
+            description: it.description,
+            itemLink: it.itemLink,
+            units: it.units,
+            uom: it.uom,
+            unitPrice: it.unitPrice,
+          }))
+        );
+
+        toast({
+          title: "Order submitted",
+          description: "Items will be delivered soon!",
+        });
+        setItems([]);
+        router.push(`/dashboard`);
+      } catch (e) {
+        toast({
+          title: "Submit failed",
+          description: e instanceof Error ? e.message : "Unknown error",
+          variant: "destructive",
+        });
+      }
+    });
   };
 
   return (
@@ -151,10 +205,6 @@ export default function NewOrderPage() {
               <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
                 Add New Order
               </h1>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Add line items below. You can wire “Create Order” to your DB
-                later.
-              </p>
             </div>
           </div>
 
@@ -168,14 +218,10 @@ export default function NewOrderPage() {
             </Button>
 
             <Button
-              className="rounded-2xl"
-              variant={items.length > 0 ? "accent" : "secondary"}
+              className="rounded-2xl cursor-pointer"
+              variant={items.length === 0 ? "secondary" : "hero"}
               disabled={items.length === 0}
-              onClick={() => {
-                // TODO: hook this up to your server action / Supabase insert
-                // For now, just a placeholder navigation:
-                router.push("/dashboard/orders");
-              }}
+              onClick={() => setConfirmOpen(true)}
             >
               Submit Order
             </Button>
@@ -201,7 +247,6 @@ export default function NewOrderPage() {
                   <TableHead className="text-right"># Units</TableHead>
                   <TableHead>Unit of Measurement</TableHead>
                   <TableHead className="text-right">Unit Price</TableHead>
-                  <TableHead className="text-right">Delivered Price</TableHead>
                   <TableHead className="w-[44px]" />
                 </TableRow>
               </TableHeader>
@@ -254,14 +299,11 @@ export default function NewOrderPage() {
                       <TableCell className="text-right">
                         {money(it.unitPrice)}
                       </TableCell>
-                      <TableCell className="text-right font-semibold">
-                        {money(it.deliveredPrice)}
-                      </TableCell>
                       <TableCell className="text-right">
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="rounded-xl"
+                          className="rounded-xl cursor-pointer hover:bg-red-300/40"
                           onClick={() => removeItem(it.id)}
                           aria-label="Remove item"
                         >
@@ -295,13 +337,6 @@ export default function NewOrderPage() {
                 {items.length}
               </span>
             </p>
-
-            <div className="rounded-2xl border border-border bg-background/60 px-4 py-2 text-sm">
-              <span className="text-muted-foreground">Total Delivered:</span>{" "}
-              <span className="font-semibold text-foreground">
-                {money(totalDelivered)}
-              </span>
-            </div>
           </div>
         </motion.div>
 
@@ -314,27 +349,36 @@ export default function NewOrderPage() {
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label>Supplier Name</Label>
+                <Label>
+                  Supplier Name<span className="text-red-600">*</span>
+                </Label>
                 <Input
                   value={supplierName}
                   onChange={(e) => setSupplierName(e.target.value)}
+                  required
                   placeholder="e.g. Thermo Fisher"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>SKU / Item Number</Label>
+                <Label>
+                  SKU / Item Number<span className="text-red-600">*</span>
+                </Label>
                 <Input
                   value={sku}
                   onChange={(e) => setSku(e.target.value)}
+                  required
                   placeholder="e.g. AB-12345"
                 />
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <Label>Description</Label>
+                <Label>
+                  Description<span className="text-red-600">*</span>
+                </Label>
                 <Textarea
                   value={description}
+                  required
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Short description of the item..."
                   className="min-h-[90px]"
@@ -342,10 +386,13 @@ export default function NewOrderPage() {
               </div>
 
               <div className="space-y-2 sm:col-span-2">
-                <Label>Item Link</Label>
+                <Label>
+                  Item Link<span className="text-red-600">*</span>
+                </Label>
                 <Input
                   value={itemLink}
                   onChange={(e) => setItemLink(e.target.value)}
+                  required
                   placeholder="https://..."
                 />
                 <p className="text-xs text-muted-foreground">
@@ -355,10 +402,13 @@ export default function NewOrderPage() {
               </div>
 
               <div className="space-y-2">
-                <Label># Units</Label>
+                <Label>
+                  # Units<span className="text-red-600">*</span>
+                </Label>
                 <Input
                   type="number"
                   inputMode="numeric"
+                  required
                   min={1}
                   value={units}
                   onChange={(e) => setUnits(e.target.value)}
@@ -367,10 +417,13 @@ export default function NewOrderPage() {
               </div>
 
               <div className="space-y-2">
-                <Label>Unit of Measurement</Label>
+                <Label>
+                  Unit of Measurement<span className="text-red-600">*</span>
+                </Label>
                 <Input
                   value={uom}
                   onChange={(e) => setUom(e.target.value)}
+                  required
                   placeholder="e.g. ea, box, pack, mL"
                 />
               </div>
@@ -387,25 +440,12 @@ export default function NewOrderPage() {
                   placeholder="e.g. 149.99"
                 />
               </div>
-
-              <div className="space-y-2">
-                <Label>Delivered Price</Label>
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  step="0.01"
-                  min={0}
-                  value={deliveredPrice}
-                  onChange={(e) => setDeliveredPrice(e.target.value)}
-                  placeholder="e.g. 165.42"
-                />
-              </div>
             </div>
 
             <DialogFooter className="mt-2 gap-2 sm:gap-0">
               <Button
                 variant="ghost"
-                className="rounded-2xl"
+                className="rounded-2xl cursor-pointer"
                 onClick={() => {
                   resetForm();
                   setOpen(false);
@@ -414,9 +454,72 @@ export default function NewOrderPage() {
                 Cancel
               </Button>
 
-              <Button className="rounded-2xl" onClick={onAddItem}>
+              <Button
+                className="rounded-2xl cursor-pointer"
+                onClick={onAddItem}
+              >
                 <Plus className="mr-2 h-4 w-4" />
                 Add Item
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        {/* Confirm Submit Modal */}
+        <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
+          <DialogContent className="sm:max-w-[520px] rounded-3xl">
+            <DialogHeader>
+              <DialogTitle>Submit this order?</DialogTitle>
+            </DialogHeader>
+
+            <div className="space-y-3">
+              <p className="text-sm text-muted-foreground">
+                You’re about to submit{" "}
+                <span className="font-medium text-foreground">
+                  {items.length}
+                </span>{" "}
+                item{items.length === 1 ? "" : "s"}.
+              </p>
+
+              {/* Optional: total */}
+              {/* <div className="rounded-2xl border border-border bg-background/60 p-3">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Estimated total</span>
+                  <span className="font-medium text-foreground">
+                    {money(
+                      items.reduce(
+                        (sum, it) => sum + it.units * it.unitPrice,
+                        0
+                      )
+                    )}
+                  </span>
+                </div>
+              </div> */}
+
+              {/* <p className="text-xs text-muted-foreground">
+                Please confirm you want to submit.
+              </p> */}
+            </div>
+
+            <DialogFooter className="mt-2 gap-2 sm:gap-0">
+              <Button
+                variant="ghost"
+                className="rounded-2xl cursor-pointer"
+                disabled={isPending}
+                onClick={() => setConfirmOpen(false)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                className="rounded-2xl cursor-pointer"
+                disabled={items.length === 0 || isPending}
+                onClick={() => {
+                  setConfirmOpen(false);
+                  handleSubmitOrder();
+                }}
+              >
+                {isPending ? "Submitting..." : "Yes, submit"}
               </Button>
             </DialogFooter>
           </DialogContent>

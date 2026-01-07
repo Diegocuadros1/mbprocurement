@@ -16,7 +16,6 @@ type CompanyRow = {
 };
 
 export default function CompaniesDashboard({
-  userName,
   companies,
 }: {
   userName: string;

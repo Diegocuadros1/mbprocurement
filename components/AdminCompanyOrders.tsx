@@ -21,7 +21,7 @@ type OrderRow = {
 
 const parseCost = (v: string | null): number => (v == null ? 0 : Number(v));
 
-export default function OrdersDashboard({
+export default function AdminOrdersDashboard({
   companyName,
   orders,
 }: {
@@ -38,12 +38,6 @@ export default function OrdersDashboard({
           style: "currency",
           currency: "USD",
         }).format(Number(v));
-
-  // const formatMoneyNumber = (n: number) =>
-  //   new Intl.NumberFormat("en-US", {
-  //     style: "currency",
-  //     currency: "USD",
-  //   }).format(n);
 
   const parseDateTime = (o: OrderRow) => {
     // Construct a parseable datetime (assumes local timezone display)
@@ -85,30 +79,6 @@ export default function OrdersDashboard({
     });
   }, [normalized, query]);
 
-  // const summary = useMemo(() => {
-  //   const today = new Date();
-  //   const todayKey = today.toISOString().slice(0, 10); // YYYY-MM-DD
-
-  //   const y = new Date();
-  //   y.setDate(y.getDate() - 1);
-  //   const yKey = y.toISOString().slice(0, 10);
-
-  //   const compute = (key: string) => {
-  //     const dayOrders = normalized.filter((o) => o.order_date === key);
-  //     const total = dayOrders.reduce(
-  //       (acc, o) => acc + parseCost(o.total_cost),
-  //       0
-  //     );
-  //     const hasPending = dayOrders.some((o) => !o.is_placed);
-  //     return { count: dayOrders.length, total, hasPending };
-  //   };
-
-  //   return {
-  //     today: compute(todayKey),
-  //     yesterday: compute(yKey),
-  //   };
-  // }, [normalized]);
-
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* Background Pattern */}
@@ -134,14 +104,6 @@ export default function OrdersDashboard({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Button
-              onClick={() => router.push("/dashboard/orders/new")}
-              className="rounded-2xl cursor-pointer"
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              Add New Order
-            </Button>
-
             <div className="relative">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <Input
@@ -166,27 +128,6 @@ export default function OrdersDashboard({
           }}
           className="w-full rounded-3xl border border-border bg-card/60 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/40 sm:p-4"
         >
-          {/* Summary rows
-          <div className="rounded-2xl border border-border bg-background/60 px-4 py-3">
-            <SummaryLine
-              label="Orders Today:"
-              count={summary.today.count}
-              total={formatMoneyNumber(summary.today.total)}
-              isPending={summary.today.count > 0 && summary.today.hasPending}
-              isEmpty={summary.today.count === 0}
-            />
-            <div className="my-3 h-px w-full bg-border" />
-            <SummaryLine
-              label="Orders Yesterday:"
-              count={summary.yesterday.count}
-              total={formatMoneyNumber(summary.yesterday.total)}
-              isPending={
-                summary.yesterday.count > 0 && summary.yesterday.hasPending
-              }
-              isEmpty={summary.yesterday.count === 0}
-            />
-          </div> */}
-
           {/* Orders list */}
           <div className="mt-3">
             <AnimatePresence mode="popLayout">
@@ -217,53 +158,6 @@ export default function OrdersDashboard({
     </div>
   );
 }
-
-// function SummaryLine({
-//   label,
-//   count,
-//   total,
-//   isPending,
-//   isEmpty,
-// }: {
-//   label: string;
-//   count: number;
-//   total: string;
-//   isPending: boolean;
-//   isEmpty: boolean;
-// }) {
-//   return (
-//     <div className="grid grid-cols-12 items-center gap-3 text-sm">
-//       <div className="col-span-4 font-semibold text-foreground">
-//         {label}
-//         <span className="ml-2 font-normal text-muted-foreground">{count}</span>
-//       </div>
-
-//       <div className="col-span-4 font-semibold text-foreground">
-//         Total Cost:
-//         <span className="ml-2 font-normal text-muted-foreground">{total}</span>
-//       </div>
-
-//       <div className="col-span-4 text-right font-semibold">
-//         <span
-//           className={cn(
-//             "rounded-full px-2 py-1 text-xs",
-//             isEmpty
-//               ? "bg-muted text-muted-foreground"
-//               : isPending
-//               ? "bg-destructive/15 text-destructive"
-//               : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-//           )}
-//         >
-//           {isEmpty
-//             ? "No Orders"
-//             : isPending
-//             ? "Order Pending"
-//             : "Order Completed"}
-//         </span>
-//       </div>
-//     </div>
-//   );
-// }
 
 function OrderListRow({
   order,
