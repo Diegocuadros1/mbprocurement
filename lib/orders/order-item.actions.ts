@@ -9,8 +9,11 @@ export async function updateOrderItemAction(input: {
   orderItemId: string;
   deliveredPrice: number | null;
   isOrdered: boolean;
+  sdsLink: string | null;
+  orderNumber: string | null;
+  trackingLink: string | null;
 }) {
-  const { orderItemId, deliveredPrice, isOrdered } = input;
+  const { orderItemId, deliveredPrice, isOrdered, sdsLink, orderNumber, trackingLink } = input;
 
   if (!uuidRe.test(orderItemId)) {
     throw new Error(`Invalid orderItemId: "${orderItemId}"`);
@@ -20,6 +23,15 @@ export async function updateOrderItemAction(input: {
     (!Number.isFinite(deliveredPrice) || deliveredPrice < 0)
   ) {
     throw new Error("Delivered price must be a non-negative number (or empty).");
+  }
+  if(!sdsLink) {
+    throw new Error("SDS link must be provided");
+  }
+  if(!orderNumber) {
+    throw new Error("Order number must be provided");
+  }
+  if(!trackingLink) {
+    throw new Error("Tracking link must be provided");
   }
 
   const supabase = await createClient();
@@ -42,9 +54,12 @@ export async function updateOrderItemAction(input: {
       delivered_price: deliveredPrice,
       is_ordered: isOrdered,
       ordered_at: nextOrderedAt,
+      sds_link: input.sdsLink,
+      order_number: input.orderNumber,
+      tracking_link: input.trackingLink,
     })
     .eq("id", orderItemId)
-    .select("id, delivered_price, is_ordered, ordered_at")
+    .select("id, delivered_price, is_ordered, ordered_at, sds_link, order_number, tracking_link")
     .single();
 
   if (error) throw new Error(error.message);

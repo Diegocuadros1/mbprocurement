@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowLeft, ExternalLink, Download, Eye, Check, X } from "lucide-react";
 import * as XLSX from "xlsx";
+import { money, safeTime, toNumber } from "@/lib/helpers";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -26,44 +27,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-type Order = {
-  id: string;
-  company_id: string;
-  order_date: string; // "YYYY-MM-DD"
-  order_time: string; // "HH:MM:SS.ssssss"
-  is_placed: boolean;
-  placed_at: string | null; // ISO timestamp or null
-  total_cost: string | null;
-  created_at: string;
-  order_items: {
-    id: string;
-    supplier_name: string;
-    item_number: string;
-    description: string;
-    item_link: string;
-    units: number;
-    unit_of_measure: string;
-    unit_price: number;
-    is_ordered: boolean;
-    ordered_at: string | null; // ISO timestamp or null
-    line_total: string | null;
-    delivered_price: number | null;
-  }[];
-};
-
-type OrderItem = Order["order_items"][number];
-
-const money = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number.isFinite(n) ? n : 0
-  );
-
-const safeTime = (t: string) => (t ? t.slice(0, 5) : "");
-
-const toNumber = (v: unknown) => {
-  const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
-  return Number.isFinite(n) ? n : 0;
-};
+import { Order, OrderItem } from "@/types";
 
 export default function ViewOrder({ order }: { order: Order }) {
   const router = useRouter();
@@ -87,11 +51,19 @@ export default function ViewOrder({ order }: { order: Order }) {
     setDetailsOpen(true);
   };
 
+  const sortedItems = useMemo(() => {
+    return [...order.order_items].sort((a, b) =>
+      (a.supplier_name ?? "").localeCompare(b.supplier_name ?? "", undefined, {
+        sensitivity: "base", // case-insensitive-ish
+      })
+    );
+  }, [order.order_items]);
+
   const downloadXlsx = () => {
     if (!order.order_items?.length) return;
 
     // Export oldest -> newest (feel free to flip)
-    const rows = [...order.order_items].reverse().map((it, idx) => {
+    const rows = [...sortedItems].map((it, idx) => {
       const units = toNumber(it.units);
       const unitPrice = toNumber(it.unit_price);
       const lineTotal = it.line_total
@@ -111,6 +83,9 @@ export default function ViewOrder({ order }: { order: Order }) {
         "Line Total (USD)": Number(lineTotal.toFixed(2)),
         Ordered: it.is_ordered ? "Yes" : "No",
         "Ordered At": it.ordered_at ?? "",
+        "SDS Link": it.sds_link ?? "",
+        "Order Number": it.order_number ?? "",
+        "Tracking Link": it.tracking_link ?? "",
       };
     });
 
@@ -243,7 +218,7 @@ export default function ViewOrder({ order }: { order: Order }) {
 
               <TableBody>
                 <AnimatePresence initial={false}>
-                  {order.order_items.map((it) => {
+                  {sortedItems.map((it) => {
                     const units = toNumber(it.units);
                     const unitPrice = toNumber(it.unit_price);
                     const lineTotal = it.line_total
@@ -319,7 +294,7 @@ export default function ViewOrder({ order }: { order: Order }) {
                         <TableCell>
                           <div className="inline-flex items-center gap-2">
                             {it.is_ordered ? (
-                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-accent/10 px-2 py-1 text-xs text-foreground">
+                              <span className="inline-flex items-center gap-1 rounded-full border border-border bg-green-400/10 px-2 py-1 text-xs text-foreground">
                                 <Check className="h-3.5 w-3.5" />
                                 Yes
                               </span>
@@ -448,6 +423,30 @@ export default function ViewOrder({ order }: { order: Order }) {
                   <p className="text-sm">
                     {typeof selectedItem.delivered_price === "number"
                       ? money(selectedItem.delivered_price)
+                      : "—"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">SDS Link</p>
+                  <p className="text-sm">
+                    {typeof selectedItem.sds_link === "string"
+                      ? selectedItem.sds_link
+                      : "—"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Order Number</p>
+                  <p className="text-sm">
+                    {typeof selectedItem.order_number === "string"
+                      ? selectedItem.order_number
+                      : "—"}
+                  </p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Tracking Link</p>
+                  <p className="text-sm">
+                    {typeof selectedItem.tracking_link === "string"
+                      ? selectedItem.tracking_link
                       : "—"}
                   </p>
                 </div>

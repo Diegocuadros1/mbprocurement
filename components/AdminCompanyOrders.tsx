@@ -147,9 +147,15 @@ export default function AdminOrdersDashboard({
                 animate={{ opacity: 1, y: 0 }}
                 className="grid place-items-center py-14 text-center"
               >
-                <p className="text-sm text-muted-foreground">
-                  No orders match “{query}”.
-                </p>
+                {query === "" ? (
+                  <p className="text-sm text-muted-foreground">
+                    No orders present.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No orders match “{query}”.
+                  </p>
+                )}
               </motion.div>
             )}
           </div>

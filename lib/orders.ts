@@ -54,6 +54,7 @@ export async function fetchOrderById(orderId: string) {
       is_placed,
       placed_at,
       created_at,
+      submitted_by,
       order_items (
         id,
         supplier_name,
@@ -66,7 +67,10 @@ export async function fetchOrderById(orderId: string) {
         is_ordered,
         ordered_at,
         line_total,
-        delivered_price
+        delivered_price,
+        sds_link,
+        order_number,
+        tracking_link
       )
     `)
     .eq("id", orderId)

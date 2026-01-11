@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils";
 
 import { useToast } from "@/hooks/use-toast";
 import { submitOrderAction } from "@/lib/orders/actions";
+import { money, normalizeUrl } from "@/lib/helpers";
 
 type OrderItem = {
   id: string;
@@ -38,18 +39,6 @@ type OrderItem = {
   units: number;
   uom: string;
   unitPrice: number;
-};
-
-const money = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number.isFinite(n) ? n : 0
-  );
-
-const normalizeUrl = (raw: string) => {
-  const v = raw.trim();
-  if (!v) return "";
-  if (v.startsWith("http://") || v.startsWith("https://")) return v;
-  return `https://${v}`;
 };
 
 export default function NewOrderPage() {

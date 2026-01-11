@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
+import { money, safeTime, toNumber } from "@/lib/helpers";
 
 import {
   Dialog,
@@ -37,48 +38,20 @@ import {
 } from "@/components/ui/table";
 
 import { updateOrderItemAction } from "@/lib/orders/order-item.actions";
-
-type Order = {
-  id: string;
-  company_id: string;
-  order_date: string; // "YYYY-MM-DD"
-  order_time: string; // "HH:MM:SS.ssssss"
-  is_placed: boolean;
-  placed_at: string | null; // ISO timestamp or null
-  total_cost: string | null;
-  created_at: string;
-  order_items: {
-    id: string;
-    supplier_name: string;
-    item_number: string;
-    description: string;
-    item_link: string;
-    units: number;
-    unit_of_measure: string;
-    unit_price: number;
-    is_ordered: boolean;
-    ordered_at: string | null; // ISO timestamp or null
-    line_total: string | null;
-    delivered_price: number | null;
-  }[];
-};
+import type { Order } from "@/types";
+import { useToast } from "@/hooks/use-toast";
 
 type OrderItem = Order["order_items"][number];
 
-const money = (n: number) =>
-  new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(
-    Number.isFinite(n) ? n : 0
-  );
-
-const safeTime = (t: string) => (t ? t.slice(0, 5) : "");
-
-const toNumber = (v: unknown) => {
-  const n = typeof v === "string" ? Number(v) : typeof v === "number" ? v : NaN;
-  return Number.isFinite(n) ? n : 0;
-};
-
-export default function AdminViewOrder({ order }: { order: Order }) {
+export default function AdminViewOrder({
+  order,
+  username,
+}: {
+  order: Order;
+  username: string | null;
+}) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isPending, startTransition] = useTransition();
 
   // local copy so UI can update instantly after save
@@ -87,7 +60,11 @@ export default function AdminViewOrder({ order }: { order: Order }) {
   // Edit modal state
   const [editOpen, setEditOpen] = useState(false);
   const [selectedItem, setSelectedItem] = useState<OrderItem | null>(null);
+
   const [deliveredPriceInput, setDeliveredPriceInput] = useState<string>("");
+  const [sdsLink, setSdsLink] = useState<string>("");
+  const [orderNumber, setOrderNumber] = useState<string>("");
+  const [trackingLink, setTrackingLink] = useState<string>("");
   const [markOrdered, setMarkOrdered] = useState<boolean>(false);
 
   const orderTotal = useMemo(() => {
@@ -109,6 +86,11 @@ export default function AdminViewOrder({ order }: { order: Order }) {
         : ""
     );
     setMarkOrdered(!!item.is_ordered);
+
+    setSdsLink(item.sds_link ?? "");
+    setOrderNumber(item.order_number ?? "");
+    setTrackingLink(item.tracking_link ?? "");
+
     setEditOpen(true);
   };
 
@@ -122,8 +104,23 @@ export default function AdminViewOrder({ order }: { order: Order }) {
       deliveredPrice !== null &&
       (!Number.isFinite(deliveredPrice) || deliveredPrice < 0)
     ) {
-      // keep it simple (you can swap for toast)
-      alert("Delivered price must be a non-negative number (or empty).");
+      toast({ title: "Delivered Price must be a number" });
+      return;
+    }
+    if (!markOrdered) {
+      toast({ title: "Mark ordered must be checked" });
+      return;
+    }
+    if (!sdsLink.trim()) {
+      toast({ title: "SDS link must be provided" });
+      return;
+    }
+    if (!orderNumber.trim()) {
+      toast({ title: "Order number must be provided" });
+      return;
+    }
+    if (!trackingLink.trim()) {
+      toast({ title: "Tracking link must be provided" });
       return;
     }
 
@@ -132,6 +129,9 @@ export default function AdminViewOrder({ order }: { order: Order }) {
         orderItemId: selectedItem.id,
         deliveredPrice,
         isOrdered: markOrdered,
+        sdsLink,
+        orderNumber,
+        trackingLink,
       });
 
       // Patch local state so UI updates immediately
@@ -143,6 +143,9 @@ export default function AdminViewOrder({ order }: { order: Order }) {
                 delivered_price: updated.delivered_price,
                 is_ordered: updated.is_ordered,
                 ordered_at: updated.ordered_at,
+                sds_link: updated.sds_link,
+                order_number: updated.order_number,
+                tracking_link: updated.tracking_link,
               }
             : it
         )
@@ -151,8 +154,6 @@ export default function AdminViewOrder({ order }: { order: Order }) {
       setEditOpen(false);
       setSelectedItem(null);
 
-      // If your page above is a Server Component that fetches order data,
-      // this ensures it re-fetches too:
       router.refresh();
     });
   };
@@ -160,7 +161,7 @@ export default function AdminViewOrder({ order }: { order: Order }) {
   const downloadXlsx = () => {
     if (!items.length) return;
 
-    const rows = [...items].reverse().map((it, idx) => {
+    const rows = [...sortedItems].map((it, idx) => {
       const units = toNumber(it.units);
       const unitPrice = toNumber(it.unit_price);
       const lineTotal = it.line_total
@@ -180,6 +181,9 @@ export default function AdminViewOrder({ order }: { order: Order }) {
         "Line Total (USD)": Number(lineTotal.toFixed(2)),
         Ordered: it.is_ordered ? "Yes" : "No",
         "Ordered At": it.ordered_at ?? "",
+        "SDS Link": it.sds_link ?? "",
+        "Order Number": it.order_number ?? "",
+        "Tracking Link": it.tracking_link ?? "",
       };
     });
 
@@ -221,6 +225,14 @@ export default function AdminViewOrder({ order }: { order: Order }) {
     a.remove();
     URL.revokeObjectURL(url);
   };
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a, b) =>
+      (a.supplier_name ?? "").localeCompare(b.supplier_name ?? "", undefined, {
+        sensitivity: "base", // case-insensitive-ish
+      })
+    );
+  }, [items]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background mt-30">
@@ -269,6 +281,13 @@ export default function AdminViewOrder({ order }: { order: Order }) {
                   </span>
                 ) : null}
               </p>
+              {username ? (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  Placed by: {username}
+                </p>
+              ) : (
+                <p className="mt-1 text-sm text-muted-foreground"></p>
+              )}
             </div>
           </div>
 
@@ -297,20 +316,20 @@ export default function AdminViewOrder({ order }: { order: Order }) {
             <Table>
               <TableHeader>
                 <TableRow className="bg-card/40">
-                  <TableHead className="w-[220px]">Supplier</TableHead>
+                  <TableHead className="w-55">Supplier</TableHead>
                   <TableHead>Item</TableHead>
                   <TableHead className="w-[140px] text-right">Qty</TableHead>
                   <TableHead className="w-[220px] text-right">
                     Pricing
                   </TableHead>
                   <TableHead className="w-[110px]">Ordered</TableHead>
-                  <TableHead className="w-[120px] text-right">Edit</TableHead>
+                  <TableHead className="w-[120px] text-right">Order</TableHead>
                 </TableRow>
               </TableHeader>
 
               <TableBody>
                 <AnimatePresence initial={false}>
-                  {items.map((it) => {
+                  {sortedItems.map((it) => {
                     const units = toNumber(it.units);
                     const unitPrice = toNumber(it.unit_price);
 
@@ -396,7 +415,7 @@ export default function AdminViewOrder({ order }: { order: Order }) {
                             size="icon"
                             className="rounded-xl cursor-pointer"
                             onClick={() => openEdit(it)}
-                            aria-label="Edit item"
+                            aria-label="Order Item"
                           >
                             <Pencil className="h-4 w-4 text-muted-foreground" />
                           </Button>
@@ -440,7 +459,7 @@ export default function AdminViewOrder({ order }: { order: Order }) {
         <Dialog open={editOpen} onOpenChange={setEditOpen}>
           <DialogContent className="sm:max-w-[760px] rounded-3xl">
             <DialogHeader>
-              <DialogTitle>Edit Item</DialogTitle>
+              <DialogTitle>Order Item</DialogTitle>
             </DialogHeader>
 
             {selectedItem && (
@@ -502,14 +521,44 @@ export default function AdminViewOrder({ order }: { order: Order }) {
                   />
                 </div>
 
+                <div className="space-y-2">
+                  <Label>SDS Link</Label>
+                  <Input
+                    value={sdsLink}
+                    onChange={(e) => setSdsLink(e.target.value)}
+                    placeholder="link"
+                    disabled={isPending}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Tracking Link</Label>
+                  <Input
+                    value={trackingLink}
+                    onChange={(e) => setTrackingLink(e.target.value)}
+                    placeholder="link"
+                    disabled={isPending}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Order Number</Label>
+                  <Input
+                    value={orderNumber}
+                    onChange={(e) => setOrderNumber(e.target.value)}
+                    placeholder="order number"
+                    disabled={isPending}
+                  />
+                </div>
+
                 {/* Mark Ordered toggle */}
                 <div className="space-y-2">
-                  <Label>Placed / Ordered</Label>
+                  <Label className="pr-4">Ordered: </Label>
                   <Button
                     type="button"
                     variant="secondary"
                     className={cn(
-                      "w-full rounded-2xl justify-between cursor-pointer",
+                      "w-1/2 rounded-2xl justify-between cursor-pointer",
                       markOrdered
                         ? "bg-green-400/15 text-foreground"
                         : "bg-accent/15"

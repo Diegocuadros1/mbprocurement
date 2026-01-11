@@ -1,16 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-
-export type OrderItemInput = {
-  supplierName: string;
-  sku: string; // maps to item_number
-  description: string;
-  itemLink: string; // maps to item_link
-  units: number;
-  uom: string; // maps to unit_of_measure
-  unitPrice: number; // maps to unit_price
-};
+import { OrderItemInput } from "@/types";
 
 export async function submitOrderAction(items: OrderItemInput[]) {
   if (!Array.isArray(items) || items.length === 0) {
@@ -53,7 +44,6 @@ export async function submitOrderAction(items: OrderItemInput[]) {
       is_placed: false,
       total_cost: null,
       placed_at: null,
-      // order_date/order_time have defaults in your DB (if they don't, tell me and we’ll set them here)
     })
     .select("id")
     .single();

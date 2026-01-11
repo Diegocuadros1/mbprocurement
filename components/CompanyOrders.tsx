@@ -8,16 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-type OrderRow = {
-  id: string;
-  company_id: string;
-  order_date: string; // "YYYY-MM-DD"
-  order_time: string; // "HH:MM:SS.ssssss"
-  is_placed: boolean;
-  placed_at: string | null; // ISO timestamp or null
-  total_cost: string | null;
-  created_at: string;
-};
+import type { OrderRow } from "@/types";
 
 const parseCost = (v: string | null): number => (v == null ? 0 : Number(v));
 
@@ -39,16 +30,7 @@ export default function OrdersDashboard({
           currency: "USD",
         }).format(Number(v));
 
-  // const formatMoneyNumber = (n: number) =>
-  //   new Intl.NumberFormat("en-US", {
-  //     style: "currency",
-  //     currency: "USD",
-  //   }).format(n);
-
   const parseDateTime = (o: OrderRow) => {
-    // Construct a parseable datetime (assumes local timezone display)
-    // order_date: "2026-01-03"
-    // order_time: "21:33:15.803749" -> keep first 3 ms digits for JS Date
     const ms = o.order_time.includes(".")
       ? o.order_time.split(".")[1].slice(0, 3).padEnd(3, "0")
       : "000";
@@ -84,30 +66,6 @@ export default function OrdersDashboard({
       );
     });
   }, [normalized, query]);
-
-  // const summary = useMemo(() => {
-  //   const today = new Date();
-  //   const todayKey = today.toISOString().slice(0, 10); // YYYY-MM-DD
-
-  //   const y = new Date();
-  //   y.setDate(y.getDate() - 1);
-  //   const yKey = y.toISOString().slice(0, 10);
-
-  //   const compute = (key: string) => {
-  //     const dayOrders = normalized.filter((o) => o.order_date === key);
-  //     const total = dayOrders.reduce(
-  //       (acc, o) => acc + parseCost(o.total_cost),
-  //       0
-  //     );
-  //     const hasPending = dayOrders.some((o) => !o.is_placed);
-  //     return { count: dayOrders.length, total, hasPending };
-  //   };
-
-  //   return {
-  //     today: compute(todayKey),
-  //     yesterday: compute(yKey),
-  //   };
-  // }, [normalized]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -166,27 +124,6 @@ export default function OrdersDashboard({
           }}
           className="w-full rounded-3xl border border-border bg-card/60 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/40 sm:p-4"
         >
-          {/* Summary rows
-          <div className="rounded-2xl border border-border bg-background/60 px-4 py-3">
-            <SummaryLine
-              label="Orders Today:"
-              count={summary.today.count}
-              total={formatMoneyNumber(summary.today.total)}
-              isPending={summary.today.count > 0 && summary.today.hasPending}
-              isEmpty={summary.today.count === 0}
-            />
-            <div className="my-3 h-px w-full bg-border" />
-            <SummaryLine
-              label="Orders Yesterday:"
-              count={summary.yesterday.count}
-              total={formatMoneyNumber(summary.yesterday.total)}
-              isPending={
-                summary.yesterday.count > 0 && summary.yesterday.hasPending
-              }
-              isEmpty={summary.yesterday.count === 0}
-            />
-          </div> */}
-
           {/* Orders list */}
           <div className="mt-3">
             <AnimatePresence mode="popLayout">
@@ -206,9 +143,15 @@ export default function OrdersDashboard({
                 animate={{ opacity: 1, y: 0 }}
                 className="grid place-items-center py-14 text-center"
               >
-                <p className="text-sm text-muted-foreground">
-                  No orders match “{query}”.
-                </p>
+                {query === "" ? (
+                  <p className="text-sm text-muted-foreground">
+                    No orders present.
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    No orders match “{query}”.
+                  </p>
+                )}
               </motion.div>
             )}
           </div>
@@ -217,53 +160,6 @@ export default function OrdersDashboard({
     </div>
   );
 }
-
-// function SummaryLine({
-//   label,
-//   count,
-//   total,
-//   isPending,
-//   isEmpty,
-// }: {
-//   label: string;
-//   count: number;
-//   total: string;
-//   isPending: boolean;
-//   isEmpty: boolean;
-// }) {
-//   return (
-//     <div className="grid grid-cols-12 items-center gap-3 text-sm">
-//       <div className="col-span-4 font-semibold text-foreground">
-//         {label}
-//         <span className="ml-2 font-normal text-muted-foreground">{count}</span>
-//       </div>
-
-//       <div className="col-span-4 font-semibold text-foreground">
-//         Total Cost:
-//         <span className="ml-2 font-normal text-muted-foreground">{total}</span>
-//       </div>
-
-//       <div className="col-span-4 text-right font-semibold">
-//         <span
-//           className={cn(
-//             "rounded-full px-2 py-1 text-xs",
-//             isEmpty
-//               ? "bg-muted text-muted-foreground"
-//               : isPending
-//               ? "bg-destructive/15 text-destructive"
-//               : "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
-//           )}
-//         >
-//           {isEmpty
-//             ? "No Orders"
-//             : isPending
-//             ? "Order Pending"
-//             : "Order Completed"}
-//         </span>
-//       </div>
-//     </div>
-//   );
-// }
 
 function OrderListRow({
   order,
