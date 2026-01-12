@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Navbar } from "@/components/Navbar";
 import { Toaster } from "@/components/ui/Toaster";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Plus_Jakarta_Sans({
   variable: "--font-plus-jakarta",
@@ -47,6 +48,7 @@ export default function RootLayout({
         <Navbar />
         {children}
         <Toaster />
+        <Analytics />
       </body>
     </html>
   );

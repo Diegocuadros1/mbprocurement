@@ -1,6 +1,5 @@
 "use client";
 import { motion } from "framer-motion";
-import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Target, Users, Lightbulb, Heart } from "lucide-react";
 import Image from "next/image";
@@ -65,8 +64,6 @@ const employees = [
 const About = () => {
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
-
       {/* Hero Section */}
       <section className="pt-32 pb-16 lg:pt-40 lg:pb-24">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
