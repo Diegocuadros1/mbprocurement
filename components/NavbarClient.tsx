@@ -101,7 +101,7 @@ export default function NavbarClient({
                 <Button variant="ghost" size="sm" onClick={handleLogout}>
                   Logout
                 </Button>
-                <Link href="/profile">
+                <Link href="/dashboard">
                   <Button variant="accent" size="sm">
                     Welcome {username}!
                   </Button>
@@ -159,15 +159,15 @@ export default function NavbarClient({
                 ) : (
                   <>
                     <Button
-                      className="flex-1"
+                      className="flex-1 cursor-pointer"
                       variant="outline"
                       onClick={handleLogout}
                     >
                       Logout
                     </Button>
-                    <Link href="/profile" className="flex-1">
+                    <Link href="/dashboard" className="flex-1 cursor-pointer">
                       <Button variant="accent" className="w-full">
-                        Profile
+                        Welcome {username}!
                       </Button>
                     </Link>
                   </>

@@ -51,9 +51,56 @@ export default function AdminOrdersDashboard({
     return new Date(`${o.order_date}T${timeNoFrac}.${ms}`);
   };
 
-  const normalized = useMemo(() => {
+  type NormalizedOrder = OrderRow & {
+    _dt: Date;
+    _periodKey: string; // stable grouping key
+    _periodLabel: string; // header label
+    _periodStart: Date; // for sorting groups
+  };
+
+  const getBillingPeriod = (dt: Date) => {
+    const y = dt.getFullYear();
+    const m = dt.getMonth(); // 0-11
+    const d = dt.getDate(); // 1-31
+
+    // If it's the 21st or later, period starts this month on the 21st.
+    // Otherwise, period starts last month on the 21st.
+    const start = d >= 21 ? new Date(y, m, 21) : new Date(y, m - 1, 21);
+
+    // Period ends on the 20th of the next month
+    const end = new Date(start.getFullYear(), start.getMonth() + 1, 20);
+
+    const fmt = (x: Date) =>
+      x.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+
+    const label = `${fmt(start)} – ${fmt(end)}`;
+
+    // Key by the start date (always unique for each period)
+    const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(
+      2,
+      "0"
+    )}-21`;
+
+    return { start, end, key, label };
+  };
+
+  const normalized = useMemo((): NormalizedOrder[] => {
     return orders
-      .map((o) => ({ ...o, _dt: parseDateTime(o) }))
+      .map((o) => {
+        const dt = parseDateTime(o);
+        const period = getBillingPeriod(dt);
+        return {
+          ...o,
+          _dt: dt,
+          _periodKey: period.key,
+          _periodLabel: period.label,
+          _periodStart: period.start,
+        };
+      })
       .sort((a, b) => b._dt.getTime() - a._dt.getTime());
   }, [orders]);
 
@@ -69,15 +116,43 @@ export default function AdminOrdersDashboard({
       });
       const statusStr = o.is_placed ? "completed placed" : "pending unplaced";
       const costStr = o.total_cost == null ? "" : String(o.total_cost);
+      const periodStr = o._periodLabel.toLowerCase();
 
       return (
         dateStr.toLowerCase().includes(q) ||
         timeStr.toLowerCase().includes(q) ||
         statusStr.includes(q) ||
-        costStr.includes(q)
+        costStr.includes(q) ||
+        periodStr.includes(q)
       );
     });
   }, [normalized, query]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<
+      string,
+      { key: string; label: string; start: Date; items: NormalizedOrder[] }
+    >();
+
+    for (const o of filtered) {
+      const existing = map.get(o._periodKey);
+      if (existing) {
+        existing.items.push(o);
+      } else {
+        map.set(o._periodKey, {
+          key: o._periodKey,
+          label: o._periodLabel,
+          start: o._periodStart,
+          items: [o],
+        });
+      }
+    }
+
+    // Sort groups by most recent period first
+    return Array.from(map.values()).sort(
+      (a, b) => b.start.getTime() - a.start.getTime()
+    );
+  }, [filtered]);
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
@@ -131,13 +206,35 @@ export default function AdminOrdersDashboard({
           {/* Orders list */}
           <div className="mt-3">
             <AnimatePresence mode="popLayout">
-              {filtered.map((order) => (
-                <OrderListRow
-                  key={order.id}
-                  order={order}
-                  formatMoney={formatMoney}
-                  onClick={() => router.push(`/dashboard/orders/${order.id}`)}
-                />
+              {grouped.map((group) => (
+                <motion.div
+                  key={group.key}
+                  layout
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 6 }}
+                  className="mt-4 first:mt-0"
+                >
+                  <div className="px-2 py-2">
+                    <p className="text-xs font-semibold text-muted-foreground">
+                      {group.label}
+                      <span className="ml-2 font-normal opacity-70">
+                        ({group.items.length})
+                      </span>
+                    </p>
+                  </div>
+
+                  {group.items.map((order) => (
+                    <OrderListRow
+                      key={order.id}
+                      order={order}
+                      formatMoney={formatMoney}
+                      onClick={() =>
+                        router.push(`/dashboard/orders/${order.id}`)
+                      }
+                    />
+                  ))}
+                </motion.div>
               ))}
             </AnimatePresence>
 

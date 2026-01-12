@@ -272,7 +272,7 @@ export default function AdminViewOrder({
               <p className="mt-1 text-sm text-muted-foreground">
                 Status:{" "}
                 <span className="font-medium text-foreground">
-                  {order.is_placed ? "Placed" : "Pending"}
+                  {order.is_placed ? "Ordered" : "Pending"}
                 </span>
                 {order.placed_at ? (
                   <span className="text-muted-foreground">
@@ -517,7 +517,9 @@ export default function AdminViewOrder({
                     value={deliveredPriceInput}
                     onChange={(e) => setDeliveredPriceInput(e.target.value)}
                     placeholder="e.g. 199.99"
-                    disabled={isPending}
+                    disabled={
+                      isPending || selectedItem.delivered_price !== null
+                    }
                   />
                 </div>
 
@@ -527,7 +529,7 @@ export default function AdminViewOrder({
                     value={sdsLink}
                     onChange={(e) => setSdsLink(e.target.value)}
                     placeholder="link"
-                    disabled={isPending}
+                    disabled={isPending || selectedItem.sds_link !== null}
                   />
                 </div>
 
@@ -537,7 +539,7 @@ export default function AdminViewOrder({
                     value={trackingLink}
                     onChange={(e) => setTrackingLink(e.target.value)}
                     placeholder="link"
-                    disabled={isPending}
+                    disabled={isPending || selectedItem.tracking_link !== null}
                   />
                 </div>
 
@@ -547,7 +549,7 @@ export default function AdminViewOrder({
                     value={orderNumber}
                     onChange={(e) => setOrderNumber(e.target.value)}
                     placeholder="order number"
-                    disabled={isPending}
+                    disabled={isPending || selectedItem.order_number !== null}
                   />
                 </div>
 
@@ -564,7 +566,7 @@ export default function AdminViewOrder({
                         : "bg-accent/15"
                     )}
                     onClick={() => setMarkOrdered((v) => !v)}
-                    disabled={isPending}
+                    disabled={isPending || selectedItem.is_ordered !== null}
                   >
                     <span className="inline-flex items-center gap-2">
                       {markOrdered ? (

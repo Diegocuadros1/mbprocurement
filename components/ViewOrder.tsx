@@ -70,6 +70,8 @@ export default function ViewOrder({ order }: { order: Order }) {
         ? toNumber(it.line_total)
         : units * unitPrice;
 
+      console.log(safeTime(it.ordered_at));
+
       return {
         "#": idx + 1,
         "Supplier Name": it.supplier_name ?? "",
@@ -82,7 +84,7 @@ export default function ViewOrder({ order }: { order: Order }) {
         "Delivered Price (USD)": it.delivered_price ?? "",
         "Line Total (USD)": Number(lineTotal.toFixed(2)),
         Ordered: it.is_ordered ? "Yes" : "No",
-        "Ordered At": it.ordered_at ?? "",
+        "Ordered At": it.ordered_at ? `${safeTime(it.ordered_at)}` : "",
         "SDS Link": it.sds_link ?? "",
         "Order Number": it.order_number ?? "",
         "Tracking Link": it.tracking_link ?? "",
