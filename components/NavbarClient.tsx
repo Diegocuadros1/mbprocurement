@@ -86,23 +86,28 @@ export default function NavbarClient({
             {!isLoggedIn ? (
               <>
                 <Link href="/auth">
-                  <Button variant="ghost" size="sm">
+                  <Button variant="ghost" className="cursor-pointer" size="sm">
                     Login
                   </Button>
                 </Link>
                 <Link href="/contact">
-                  <Button variant="accent" size="sm">
+                  <Button variant="accent" className="cursor-pointer" size="sm">
                     Get Started
                   </Button>
                 </Link>
               </>
             ) : (
               <>
-                <Button variant="ghost" size="sm" onClick={handleLogout}>
+                <Button
+                  variant="ghost"
+                  className="cursor-pointer"
+                  size="sm"
+                  onClick={handleLogout}
+                >
                   Logout
                 </Button>
                 <Link href="/dashboard">
-                  <Button variant="accent" size="sm">
+                  <Button variant="accent" className="cursor-pointer" size="sm">
                     Welcome {username}!
                   </Button>
                 </Link>
