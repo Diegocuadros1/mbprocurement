@@ -45,11 +45,14 @@ const Contact = () => {
     e.preventDefault();
     startTransition(async () => {
       try {
-        await notifySlack(`
+        await notifySlack(
+          "contact-outreach",
+          `
           *Contact Form Submitted!*
           Name: ${formData.firstName} ${formData.lastName}: 
           Email: ${formData.email}
-          message: ${formData.message}`);
+          message: ${formData.message}`
+        );
 
         toast({
           title: "Message sent!",

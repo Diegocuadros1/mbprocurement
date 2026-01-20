@@ -1,4 +1,3 @@
-import AdminViewOrder from "@/components/AdminViewOrder";
 import ViewOrder from "@/components/ViewOrder";
 import { fetchUsernameById, requireProfile } from "@/lib/auth";
 import { fetchOrderById } from "@/lib/orders";
