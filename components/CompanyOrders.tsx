@@ -8,73 +8,39 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
-import type { OrderRow } from "@/types";
+import {
+  toNumber,
+  sanitizeFilename,
+  formatMoney,
+  parseDateTime,
+  getBillingPeriod,
+} from "@/lib/helpers";
 
-const parseCost = (v: string | null): number => (v == null ? 0 : Number(v));
+import type { OrderItemRow, OrderRow, NormalizedOrder } from "@/types";
+import { exportOrderItemsForOrdersAction } from "@/lib/orders/actions";
+import * as XLSX from "xlsx";
 
 export default function OrdersDashboard({
   companyName,
   orders,
+  app_admin,
+  companyId,
 }: {
   companyName: string;
   orders: OrderRow[];
+  app_admin: boolean;
+  companyId: string | null;
 }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
 
-  const formatMoney = (v: string | null) =>
-    v == null
-      ? "—"
-      : new Intl.NumberFormat("en-US", {
-          style: "currency",
-          currency: "USD",
-        }).format(Number(v));
+  const newOrderUrl = !app_admin
+    ? "/dashboard/orders/new"
+    : `/dashboard/companies/${companyId}/new`;
 
-  const parseDateTime = (o: OrderRow) => {
-    const ms = o.order_time.includes(".")
-      ? o.order_time.split(".")[1].slice(0, 3).padEnd(3, "0")
-      : "000";
-    const timeNoFrac = o.order_time.split(".")[0]; // "21:33:15"
-    // "2026-01-03T21:33:15.803"
-    return new Date(`${o.order_date}T${timeNoFrac}.${ms}`);
-  };
-
-  type NormalizedOrder = OrderRow & {
-    _dt: Date;
-    _periodKey: string; // stable grouping key
-    _periodLabel: string; // header label
-    _periodStart: Date; // for sorting groups
-  };
-
-  const getBillingPeriod = (dt: Date) => {
-    const y = dt.getFullYear();
-    const m = dt.getMonth(); // 0-11
-    const d = dt.getDate(); // 1-31
-
-    // If it's the 21st or later, period starts this month on the 21st.
-    // Otherwise, period starts last month on the 21st.
-    const start = d >= 21 ? new Date(y, m, 21) : new Date(y, m - 1, 21);
-
-    // Period ends on the 20th of the next month
-    const end = new Date(start.getFullYear(), start.getMonth() + 1, 20);
-
-    const fmt = (x: Date) =>
-      x.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-
-    const label = `${fmt(start)} – ${fmt(end)}`;
-
-    // Key by the start date (always unique for each period)
-    const key = `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(
-      2,
-      "0"
-    )}-21`;
-
-    return { start, end, key, label };
-  };
+  const [downloadingByGroup, setDownloadingByGroup] = useState<
+    Record<string, boolean>
+  >({});
 
   const normalized = useMemo((): NormalizedOrder[] => {
     return orders
@@ -142,6 +108,137 @@ export default function OrdersDashboard({
     );
   }, [filtered]);
 
+  const downloadPeriodXlsx = async (group: {
+    key: string;
+    label: string;
+    start: Date;
+    items: NormalizedOrder[];
+  }) => {
+    if (!group.items.length) return;
+
+    setDownloadingByGroup((prev) => ({ ...prev, [group.key]: true }));
+
+    try {
+      const orderIds = group.items.map((o) => o.id);
+
+      const result = await exportOrderItemsForOrdersAction(orderIds);
+
+      // Your action returns: { items: ExportOrderItem[] }
+      const items = (result?.items ?? []) as OrderItemRow[];
+
+      // Group items by order_id for quick join
+      const itemsByOrderId = new Map<string, OrderItemRow[]>();
+      for (const it of items) {
+        const arr = itemsByOrderId.get(it.order_id) ?? [];
+        arr.push(it);
+        itemsByOrderId.set(it.order_id, arr);
+      }
+
+      const rows: Record<string, any>[] = [];
+      let idx = 1;
+
+      for (const order of group.items) {
+        const orderItems = itemsByOrderId.get(order.id) ?? [];
+        if (orderItems.length === 0) continue;
+
+        const ms = order.order_time.includes(".")
+          ? order.order_time.split(".")[1].slice(0, 3).padEnd(3, "0")
+          : "000";
+        const timeNoFrac = order.order_time.split(".")[0];
+        const dt = new Date(`${order.order_date}T${timeNoFrac}.${ms}`);
+
+        const orderDateStr = dt.toLocaleDateString("en-US");
+        const orderTimeStr = dt.toLocaleTimeString("en-US", {
+          hour: "2-digit",
+          minute: "2-digit",
+        });
+
+        for (const it of orderItems) {
+          const units = toNumber(it.units);
+          const unitPrice = toNumber(it.unit_price);
+          const lineTotal = it.line_total
+            ? toNumber(it.line_total)
+            : units * unitPrice;
+
+          rows.push({
+            "#": idx++,
+
+            "Billing Period": group.label,
+            "Order Date": orderDateStr,
+            "Order Time": orderTimeStr,
+            "Order Status": order.is_placed ? "Completed" : "Pending",
+            "Order Total (USD)":
+              order.total_cost == null ? "" : Number(order.total_cost),
+
+            "Supplier Name": it.supplier_name ?? "",
+            "SKU / Item #": it.item_number ?? "",
+            Description: it.description ?? "",
+            "Item Link": it.item_link ?? "",
+            Units: units,
+            UOM: it.unit_of_measure ?? "",
+            "Unit Price (USD)": unitPrice,
+            "Delivered Price (USD)": it.delivered_price ?? "",
+            "Line Total (USD)": Number(lineTotal.toFixed(2)),
+            Ordered: it.is_ordered ? "Yes" : "No",
+            "Ordered At": it.ordered_at ? `${it.ordered_at}` : "",
+            "SDS Link": it.sds_link ?? "",
+            "Order Number": it.order_number ?? "",
+            "Tracking Link": it.tracking_link ?? "",
+
+            "Order ID": order.id,
+          });
+        }
+      }
+
+      const ws = XLSX.utils.json_to_sheet(rows);
+
+      ws["!cols"] = [
+        { wch: 4 },
+        { wch: 28 },
+        { wch: 14 },
+        { wch: 12 },
+        { wch: 14 },
+        { wch: 16 },
+        { wch: 22 },
+        { wch: 18 },
+        { wch: 54 },
+        { wch: 40 },
+        { wch: 8 },
+        { wch: 10 },
+        { wch: 16 },
+        { wch: 20 },
+        { wch: 16 },
+        { wch: 10 },
+        { wch: 24 },
+        { wch: 30 },
+        { wch: 18 },
+        { wch: 30 },
+        { wch: 20 },
+      ];
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Period Items");
+
+      const file = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+      const blob = new Blob([file], {
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
+
+      const filename = `order-items-${sanitizeFilename(group.key)}.xlsx`;
+
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setDownloadingByGroup((prev) => ({ ...prev, [group.key]: false }));
+    }
+  };
+
   return (
     <div className="relative min-h-screen overflow-hidden bg-background">
       {/* Background Pattern */}
@@ -161,14 +258,11 @@ export default function OrdersDashboard({
             <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl">
               {companyName}
             </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Review order history and statuses.
-            </p>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
             <Button
-              onClick={() => router.push("/dashboard/orders/new")}
+              onClick={() => router.push(newOrderUrl)}
               className="rounded-2xl cursor-pointer"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -211,13 +305,26 @@ export default function OrdersDashboard({
                   exit={{ opacity: 0, y: 6 }}
                   className="mt-4 first:mt-0"
                 >
-                  <div className="px-2 py-2">
+                  <div className="flex items-center justify-between gap-3 px-2 py-2">
                     <p className="text-xs font-semibold text-muted-foreground">
                       {group.label}
                       <span className="ml-2 font-normal opacity-70">
                         ({group.items.length})
                       </span>
                     </p>
+
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="rounded-xl cursor-pointer"
+                      onClick={() => downloadPeriodXlsx(group)}
+                      disabled={!!downloadingByGroup[group.key]}
+                    >
+                      {downloadingByGroup[group.key]
+                        ? "Preparing..."
+                        : "Download XLSX"}
+                    </Button>
                   </div>
 
                   {group.items.map((order) => (

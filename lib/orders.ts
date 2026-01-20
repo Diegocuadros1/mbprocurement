@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { ExportOrderItem } from "@/types";
 
 export type CompanyOrder = {
   id: string;

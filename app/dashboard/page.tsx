@@ -23,6 +23,13 @@ export default async function Dashboard() {
 
     const orders = await fetchCompanyOrders(profile.company_id);
 
-    return <OrdersDashboard companyName={company.name} orders={orders} />;
+    return (
+      <OrdersDashboard
+        companyName={company.name}
+        companyId={profile.company_id}
+        orders={orders}
+        app_admin={isAdmin}
+      />
+    );
   }
 }

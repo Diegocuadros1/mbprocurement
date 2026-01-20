@@ -1,14 +1,13 @@
 "use client";
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { motion } from "framer-motion";
-import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Phone, Mail, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import emailjs from "@emailjs/browser";
+import { notifySlack } from "../actions/slack";
 
 const contactInfo = [
   {
@@ -40,43 +39,29 @@ const Contact = () => {
     email: "",
     message: "",
   });
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setIsSubmitting(true);
+    startTransition(async () => {
+      try {
+        await notifySlack(`
+          *Contact Form Submitted!*
+          Name: ${formData.firstName} ${formData.lastName}: 
+          Email: ${formData.email}
+          message: ${formData.message}`);
 
-    try {
-      await emailjs.send(
-        process.env.NEXT_PUBLIC_EMAILJS_SERVICE_ID!,
-        process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_ID!,
-        {
-          name: `${formData.firstName}${
-            formData.lastName ? " " + formData.lastName : ""
-          }`,
-          email: formData.email,
-          message: formData.message,
-        },
-        {
-          publicKey: process.env.NEXT_PUBLIC_EMAILJS_PUBLIC_KEY!,
-        }
-      );
-
-      toast({
-        title: "Message sent!",
-        description: "We'll get back to you as soon as possible.",
-      });
-
-      setIsSubmitting(false);
-      setFormData({ firstName: "", lastName: "", email: "", message: "" });
-    } catch (error) {
-      console.error("EmailJS error:", error);
-      toast({
-        title: "Something went wrong",
-        description: "Please try emailing us directly. Sorry about that!",
-      });
-      setIsSubmitting(false);
-    }
+        toast({
+          title: "Message sent!",
+          description: "We'll get back to you as soon as possible.",
+        });
+      } catch (e) {
+        toast({
+          title: "Contact Submission Failed",
+          description: "Please email us directly",
+        });
+      }
+    });
   };
 
   return (
@@ -208,9 +193,9 @@ const Contact = () => {
                     variant="accent"
                     size="lg"
                     className="w-full"
-                    disabled={isSubmitting}
+                    disabled={isPending}
                   >
-                    {isSubmitting ? (
+                    {isPending ? (
                       "Sending..."
                     ) : (
                       <>

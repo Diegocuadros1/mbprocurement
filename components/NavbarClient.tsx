@@ -13,12 +13,14 @@ import { useRouter } from "next/navigation";
 const navLinks = [
   { name: "Home", href: "/" },
   { name: "About", href: "/about" },
+  { name: "Get Pricing", href: "/get-pricing" },
   { name: "Contact", href: "/contact" },
 ];
 
 const navLinksLoggedIn = [
   { name: "Dashboard", href: "/dashboard" },
   { name: "About", href: "/about" },
+  { name: "Get Pricing", href: "/get-pricing" },
   { name: "Contact", href: "/contact" },
 ];
 

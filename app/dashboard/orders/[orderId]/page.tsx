@@ -19,8 +19,8 @@ export default async function OrderPage({
   const isAdmin = profile.role === "app_admin";
 
   if (!isAdmin) {
-    return <ViewOrder order={order} />;
+    return <ViewOrder order={order} username={null} isAdmin={isAdmin} />;
   } else {
-    return <AdminViewOrder order={order} username={username} />;
+    return <ViewOrder order={order} username={username} isAdmin={isAdmin} />;
   }
 }

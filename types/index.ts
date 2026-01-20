@@ -7,6 +7,30 @@ export type OrderItemInput = {
   units: number;
   uom: string; // maps to unit_of_measure
   unitPrice: number; // maps to unit_price
+  deliveredPrice: number | null;
+  sdsLink: string | null;
+  orderNumber: string | null;
+  trackingLink: string | null
+  ordered: boolean
+};
+
+export type OrderItemRow = {
+  id: string;
+  order_id: string;
+  supplier_name: string | null;
+  item_number: string | null;
+  description: string | null;
+  item_link: string | null;
+  units: any;
+  unit_of_measure: string | null;
+  unit_price: any;
+  delivered_price: any;
+  line_total: any;
+  is_ordered: boolean | null;
+  ordered_at: string | null;
+  sds_link: string | null;
+  order_number: string | null;
+  tracking_link: string | null;
 };
 
 
@@ -50,4 +74,34 @@ export type Order = {
   }[];
 };
 
+export type NormalizedOrder = OrderRow & {
+    _dt: Date;
+    _periodKey: string; // stable grouping key
+    _periodLabel: string; // header label
+    _periodStart: Date; // for sorting groups
+  };
+
 export type OrderItem = Order["order_items"][number];
+
+export type ExportOrderItem = {
+  id: string;
+  order_id: string;
+
+  supplier_name: string | null;
+  item_number: string | null;
+  description: string | null;
+  item_link: string | null;
+
+  units: any;
+  unit_of_measure: string | null;
+  unit_price: any;
+  delivered_price: any;
+  line_total: any;
+
+  is_ordered: boolean | null;
+  ordered_at: string | null;
+
+  sds_link: string | null;
+  order_number: string | null;
+  tracking_link: string | null;
+};

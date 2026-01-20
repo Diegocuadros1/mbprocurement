@@ -38,10 +38,8 @@ import {
 } from "@/components/ui/table";
 
 import { updateOrderItemAction } from "@/lib/orders/order-item.actions";
-import type { Order } from "@/types";
+import type { Order, OrderItem } from "@/types";
 import { useToast } from "@/hooks/use-toast";
-
-type OrderItem = Order["order_items"][number];
 
 export default function AdminViewOrder({
   order,
@@ -447,7 +445,7 @@ export default function AdminViewOrder({
               </span>
             </p>
             <p className="text-sm text-muted-foreground">
-              Estimated Total:{" "}
+              Unit Cost Total:{" "}
               <span className="font-medium text-foreground">
                 {money(orderTotal)}
               </span>
@@ -566,7 +564,7 @@ export default function AdminViewOrder({
                         : "bg-accent/15"
                     )}
                     onClick={() => setMarkOrdered((v) => !v)}
-                    disabled={isPending || selectedItem.is_ordered !== null}
+                    disabled={isPending || selectedItem.is_ordered !== false}
                   >
                     <span className="inline-flex items-center gap-2">
                       {markOrdered ? (
