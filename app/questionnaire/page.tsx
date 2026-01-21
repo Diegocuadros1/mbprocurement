@@ -78,10 +78,10 @@ export default function QuestionnairePage() {
   const toggleInArray = (
     arr: string[],
     value: string,
-    setArr: (next: string[]) => void
+    setArr: (next: string[]) => void,
   ) => {
     setArr(
-      arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value]
+      arr.includes(value) ? arr.filter((v) => v !== value) : [...arr, value],
     );
   };
 
@@ -104,7 +104,7 @@ export default function QuestionnairePage() {
     try {
       await notifySlack(
         "questionaire-responses",
-        formatSlackMessage(res.payload)
+        formatSlackMessage(res.payload),
       );
       setSubmitted(true);
       formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
@@ -154,7 +154,7 @@ export default function QuestionnairePage() {
                 {opt}
               </span>
             </label>
-          )
+          ),
         )}
       </div>
     </div>
@@ -293,7 +293,7 @@ export default function QuestionnairePage() {
                               behavior: "smooth",
                               block: "start",
                             }),
-                          80
+                          80,
                         );
                       }}
                       className="inline-flex items-center cursor-pointer justify-center px-6 py-3 rounded-xl border border-border bg-card text-foreground font-semibold hover:border-accent/30 transition-colors"
@@ -576,7 +576,7 @@ export default function QuestionnairePage() {
                       }}
                       className="inline-flex cursor-pointer items-center justify-center px-6 py-3 rounded-xl border border-border bg-card text-foreground font-semibold hover:border-accent/30 transition-colors"
                     >
-                      Hide Questionnaire
+                      Hide
                     </button>
 
                     <button

@@ -420,7 +420,7 @@ export default function QuestionnairePage() {
                                         rel="noreferrer"
                                         className={cn(
                                           "inline-flex items-center gap-1 text-sm",
-                                          "text-muted-foreground hover:text-foreground transition"
+                                          "text-muted-foreground hover:text-foreground transition",
                                         )}
                                       >
                                         Open{" "}
@@ -676,7 +676,7 @@ export default function QuestionnairePage() {
                       }}
                       className="inline-flex cursor-pointer items-center justify-center px-6 py-3 rounded-xl border border-border bg-card text-foreground font-semibold hover:border-accent/30 transition-colors"
                     >
-                      Hide Questionnaire
+                      Hide
                     </button>
 
                     <button
@@ -689,7 +689,7 @@ export default function QuestionnairePage() {
                             : "bg-accent text-accent-foreground hover:bg-accent/90"
                         }`}
                     >
-                      {saving ? "Submitting..." : "Submit Response"}
+                      {saving ? "Submitting..." : "Submit Order"}
                       <ArrowRight className="ml-2 w-5 h-5" />
                     </button>
                   </div>
