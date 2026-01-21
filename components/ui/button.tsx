@@ -11,20 +11,35 @@ const buttonVariants = cva(
       variant: {
         default:
           "bg-primary text-primary-foreground hover:bg-primary/90 shadow-soft hover:shadow-elevated",
+
         destructive:
           "bg-destructive text-destructive-foreground hover:bg-destructive/90",
+
+        // ✅ token-based outline (works in light + deck)
         outline:
-          "border-2 border-primary bg-transparent text-primary hover:bg-primary hover:text-primary-foreground",
+          "border-2 border-border bg-transparent text-foreground hover:bg-muted",
+
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        ghost: "hover:bg-accent/10 hover:text-accent",
-        link: "text-accent underline-offset-4 hover:underline",
+
+        // ✅ ghost no longer tied to accent
+        ghost: "bg-transparent text-foreground hover:bg-muted",
+
+        // ✅ link can be accent OR just foreground; pick one
+        link: "text-foreground/80 underline-offset-4 hover:text-foreground hover:underline",
+
+        // Keep accent for “special” actions
         accent:
           "bg-accent text-accent-foreground hover:bg-accent/90 shadow-soft hover:shadow-glow",
-        hero: "bg-accent text-accent-foreground hover:bg-accent/90 shadow-lg hover:shadow-glow hover:-translate-y-0.5",
+
+        // ✅ hero becomes “primary CTA” (in deck, primary should be white)
+        hero: "bg-primary text-primary-foreground shadow-lg hover:shadow-elevated hover:-translate-y-0.5",
+
+        // ✅ hero-outline token-based, subtle glass optional
         "hero-outline":
-          "border-2 border-primary/20 bg-card/50 text-primary hover:bg-card hover:border-primary/40 backdrop-blur-sm",
+          "border-2 border-border bg-card/40 text-foreground hover:bg-card/60 backdrop-blur-sm",
       },
+
       size: {
         default: "h-10 px-5 py-2",
         sm: "h-9 rounded-md px-4 text-xs",
@@ -37,11 +52,12 @@ const buttonVariants = cva(
       variant: "default",
       size: "default",
     },
-  }
+  },
 );
 
 export interface ButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement>,
+  extends
+    React.ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {
   asChild?: boolean;
 }
@@ -56,7 +72,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         {...props}
       />
     );
-  }
+  },
 );
 Button.displayName = "Button";
 
