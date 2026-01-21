@@ -16,6 +16,8 @@ import {
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
+import * as XLSX from "xlsx";
+
 import { Footer } from "@/components/Footer";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -68,8 +70,7 @@ type QuestionnairePayload = {
   items: OrderItem[];
 };
 
-export default function QuestionnairePage() {
-  const router = useRouter();
+export default function GetPricingPage() {
   const { toast } = useToast();
   const formRef = useRef<HTMLDivElement | null>(null);
 
@@ -197,9 +198,53 @@ export default function QuestionnairePage() {
         items,
       };
 
+      // 1) Slack text (your existing formatter)
       const slackText = getPricingFormatSlackMessage(payload);
 
-      await notifySlack("pricing-Responses", slackText);
+      // 2) Build spreadsheet from addItemForm columns
+      const rows = items.map((it) => ({
+        "Supplier Name": it.supplierName,
+        "SKU / Item #": it.sku,
+        Description: it.description,
+        "Item Link": it.itemLink,
+        Units: it.units,
+        UOM: it.uom,
+        "Unit Price": it.unitPrice,
+      }));
+
+      const ws = XLSX.utils.json_to_sheet(rows, {
+        header: [
+          "Supplier Name",
+          "SKU / Item #",
+          "Description",
+          "Item Link",
+          "Units",
+          "UOM",
+          "Unit Price",
+        ],
+      });
+
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Items");
+
+      // base64 is easiest to send from client → server action
+      const xlsxBase64 = XLSX.write(wb, { bookType: "xlsx", type: "base64" });
+
+      const safeName = payload.company.legalName
+        .trim()
+        .replace(/[^a-z0-9-_]+/gi, "_")
+        .slice(0, 60);
+
+      const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+      const filename = `GetPricing_${safeName || "Company"}_${date}.xlsx`;
+
+      // 3) Send BOTH message + file
+      await notifySlack("pricing-Responses", slackText, {
+        filename,
+        base64: xlsxBase64,
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      });
 
       toast({
         title: "Submitted!",
@@ -208,7 +253,6 @@ export default function QuestionnairePage() {
 
       setSubmitted(true);
 
-      // Optional: scroll to top of form area after submit
       setTimeout(() => {
         formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 80);
