@@ -165,6 +165,20 @@ export default function GetPricingPage() {
     }, 120);
   };
 
+  const sortedItems = [...items].sort((a, b) => {
+    const sup = a.supplierName.localeCompare(b.supplierName, undefined, {
+      sensitivity: "base",
+    });
+    if (sup !== 0) return sup;
+
+    const sku = a.sku.localeCompare(b.sku, undefined, { sensitivity: "base" });
+    if (sku !== 0) return sku;
+
+    return a.description.localeCompare(b.description, undefined, {
+      sensitivity: "base",
+    });
+  });
+
   const validateBeforeSubmit = (): boolean => {
     if (items.length === 0) {
       inputErrorsNotify("Please add at least one item before submitting.");
@@ -195,14 +209,14 @@ export default function GetPricingPage() {
           contacts: contacts.trim(),
           comments: comments.trim() || undefined,
         },
-        items,
+        items: sortedItems,
       };
 
       // 1) Slack text (your existing formatter)
       const slackText = getPricingFormatSlackMessage(payload);
 
       // 2) Build spreadsheet from addItemForm columns
-      const rows = items.map((it) => ({
+      const rows = sortedItems.map((it) => ({
         "Supplier Name": it.supplierName,
         "SKU / Item #": it.sku,
         Description: it.description,
