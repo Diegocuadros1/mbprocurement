@@ -92,7 +92,7 @@ export default function NavbarClient({
                     Login
                   </Button>
                 </Link>
-                <Link href="/contact">
+                <Link href="/questionnaire">
                   <Button variant="accent" className="cursor-pointer" size="sm">
                     Get Started
                   </Button>
@@ -157,7 +157,7 @@ export default function NavbarClient({
                         Login
                       </Button>
                     </Link>
-                    <Link href="/contact" className="flex-1">
+                    <Link href="/questionnaire" className="flex-1">
                       <Button variant="accent" className="w-full">
                         Get Started
                       </Button>

@@ -210,7 +210,7 @@ export default function NewCompanyOrder({
             trackingLink: it.trackingLink,
             ordered: it.ordered,
           })),
-          companyId,
+          companyId
         );
 
         const origin =
@@ -351,7 +351,7 @@ export default function NewCompanyOrder({
                             rel="noreferrer"
                             className={cn(
                               "inline-flex items-center gap-1 text-sm",
-                              "text-muted-foreground hover:text-foreground transition",
+                              "text-muted-foreground hover:text-foreground transition"
                             )}
                           >
                             Open <ExternalLink className="h-3.5 w-3.5" />
@@ -555,7 +555,7 @@ export default function NewCompanyOrder({
                         "w-1/2 rounded-2xl justify-between cursor-pointer",
                         markOrdered
                           ? "bg-green-400/15 text-foreground"
-                          : "bg-accent/15",
+                          : "bg-accent/15"
                       )}
                       onClick={() => setMarkOrdered((v) => !v)}
                     >

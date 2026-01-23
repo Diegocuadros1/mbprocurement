@@ -1,7 +1,7 @@
 // app/questionnaire/page.tsx
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ClipboardList,
@@ -14,7 +14,6 @@ import {
 } from "lucide-react";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 
 import * as XLSX from "xlsx";
 
@@ -80,8 +79,6 @@ export default function GetPricingPage() {
 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
-
-  const [, startTransition] = useTransition();
 
   // Add-item modal fields
   const [supplierName, setSupplierName] = useState("");
@@ -478,7 +475,7 @@ export default function GetPricingPage() {
                                         rel="noreferrer"
                                         className={cn(
                                           "inline-flex items-center gap-1 text-sm",
-                                          "text-muted-foreground hover:text-foreground transition",
+                                          "text-muted-foreground hover:text-foreground transition"
                                         )}
                                       >
                                         Open{" "}
