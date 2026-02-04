@@ -19,7 +19,7 @@ const faqs = [
   {
     question: "Are there hidden fees?",
     answer:
-      'No, Mission Booster operates on a transparent pricing model. We add a small administration fee, typically 5%-10% on the pricing of what we order, so you can budget effectively without unexpected costs. We don\'t have "subscription fees" or "licensing fees" that add costs regardless of whether you use the program or not. If you don\'t order things, then there are no ongoing fees.',
+      'No, ProcureWide operates on a transparent pricing model. We add a small administration fee, typically 5%-10% on the pricing of what we order, so you can budget effectively without unexpected costs. We don\'t have "subscription fees" or "licensing fees" that add costs regardless of whether you use the program or not. If you don\'t order things, then there are no ongoing fees.',
   },
   {
     question: "Does this protect my vendor discounts?",
@@ -29,7 +29,7 @@ const faqs = [
   {
     question: "What if something goes wrong?",
     answer:
-      "If any issues arise, Mission Booster will resolve them quickly and efficiently, providing you with timely status updates throughout the process.",
+      "If any issues arise, ProcureWide will resolve them quickly and efficiently, providing you with timely status updates throughout the process.",
   },
   {
     question: "What if I need to change my order?",

@@ -121,7 +121,7 @@ export const Hero = () => {
               {/* Main image container */}
               <div className="absolute inset-4 rounded-3xl bg-gradient-to-br from-secondary to-muted overflow-hidden shadow-2xl">
                 <Image
-                  src="/hero.png"
+                  src="/hero.png" // Update this path to match your image file
                   alt="Professional business team collaborating"
                   width={600}
                   height={600}
@@ -132,26 +132,6 @@ export const Hero = () => {
               </div>
 
               {/* Floating card */}
-              {/* <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8, duration: 0.6 }}
-                className="absolute -bottom-4 -left-4 sm:left-0 bg-card rounded-2xl p-4 shadow-elevated border border-border"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl bg-accent/10 flex items-center justify-center">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                  <div>
-                    <p className="text-sm text-muted-foreground">
-                      Average Savings
-                    </p>
-                    <p className="text-xl font-bold text-foreground">15-25%</p>
-                  </div>
-                </div>
-              </motion.div> */}
-
-              {/* Another floating element */}
               <motion.div
                 animate={{ y: [0, -10, 0] }}
                 transition={{

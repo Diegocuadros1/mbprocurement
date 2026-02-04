@@ -23,11 +23,7 @@ const contactInfo = [
   {
     icon: Mail,
     title: "Emails",
-    details: [
-      "david.Kiewlich@badasslabs.org",
-      "dalcala@mbprocurement.com",
-      "adarwish@mbprocurement.com",
-    ],
+    details: ["dalcala@mbprocurement.com", "adarwish@mbprocurement.com"],
   },
 ];
 
@@ -51,7 +47,7 @@ const Contact = () => {
           *Contact Form Submitted!*
           Name: ${formData.firstName} ${formData.lastName}: 
           Email: ${formData.email}
-          message: ${formData.message}`
+          message: ${formData.message}`,
         );
 
         toast({

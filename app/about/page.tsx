@@ -31,15 +31,6 @@ const values = [
 
 const employees = [
   {
-    name: "David Kielich",
-    role: "Product Owner",
-    bio: "",
-    tags: [],
-    imageURL: "/david_kielich.png",
-    linkedIn: "https://www.linkedin.com/in/davidkiewlich/",
-    email: "david.Kiewlich@badasslabs.org",
-  },
-  {
     name: "Ali Darwish",
     role: "Program Director",
     bio: "",
@@ -81,9 +72,8 @@ const About = () => {
               <span className="text-accent">to Support Science</span>
             </h1>
             <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
-              At Mission Booster Procurement, we optimize the procurement
-              process. You save money. You do more science. Your investors are
-              thrilled.
+              At ProcureWide, we optimize the procurement process. You save
+              money. You do more science. Your investors are thrilled.
             </p>
           </motion.div>
         </div>
@@ -110,11 +100,11 @@ const About = () => {
                 </strong>
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-                Mission Booster Procurement was born from our founder's
-                experience. Launching 6 startups of his own showed Dr. David
-                Kielich, that procurement is critical to best-in-class
-                operations management. Worrying about losing control only
-                resulted in stolen productivity, time, and focus.
+                ProcureWide was born from our founder's experience. Launching 6
+                startups of his own showed Dr. David Kielich, that procurement
+                is critical to best-in-class operations management. Worrying
+                about losing control only resulted in stolen productivity, time,
+                and focus.
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
                 With only so many hours in the day, every hour on a low-value
@@ -138,7 +128,7 @@ const About = () => {
                 navigating vendor relationships, and handling administrative
                 hurdles can distract startup teams from pushing the limits of
                 innovation. Driven by a deep commitment to the success of
-                scientific entrepreneurs, our team designed Mission Booster
+                scientific entrepreneurs, our team designed ProcureWide
                 Procurement to be a true partner and co-pilot.
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
@@ -151,8 +141,8 @@ const About = () => {
                 We created this program so founders could reclaim their time,
                 reduce stress, and accelerate their impact. By removing
                 bottlenecks and ensuring each order is simple, transparent, and
-                risk-managed, Mission Booster Procurement arms you with peace of
-                mind and the freedom to focus on discovery.
+                risk-managed, ProcureWide arms you with peace of mind and the
+                freedom to focus on discovery.
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed">
                 Our innovative platform is designed to streamline operations,
@@ -186,8 +176,7 @@ const About = () => {
               Our Core Values
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
-              These principles guide everything we do at Mission Booster
-              Procurement.
+              These principles guide everything we do at ProcureWide.
             </p>
           </motion.div>
 
@@ -341,21 +330,21 @@ const About = () => {
               </h2>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
                 <strong className="text-foreground">
-                  Mission Procurement finds you savings, orders for you,
-                  rectifies accounts, manages backorders, does much of your
-                  accounting and ensures you have everything at your fingertips.
+                  ProcureWide finds you savings, orders for you, rectifies
+                  accounts, manages backorders, does much of your accounting and
+                  ensures you have everything at your fingertips.
                 </strong>
               </p>
               <p className="text-muted-foreground text-lg leading-relaxed mb-6">
-                Mission Booster Procurement is a service provided by Tomorrow
-                Biotech. Tomorrow Biotech operates BADASS Labs, the most
-                successful incubator supporting early stage companies across all
-                of Biotechnology, with an 89% success rate (49 of 55 company
-                successes), Clients have raised over $900M. Tomorrow Biotech has
-                65,000 sq ft of laboratory office space with both shared
-                operations and private facilities. Clients have raised $900
-                million. The success of the startups supported by Tomorrow
-                Biotech is 10 X higher than others in Biotechnology
+                ProcureWide is a service provided by Tomorrow Biotech. Tomorrow
+                Biotech operates BADASS Labs, the most successful incubator
+                supporting early stage companies across all of Biotechnology,
+                with an 89% success rate (49 of 55 company successes), Clients
+                have raised over $900M. Tomorrow Biotech has 65,000 sq ft of
+                laboratory office space with both shared operations and private
+                facilities. Clients have raised $900 million. The success of the
+                startups supported by Tomorrow Biotech is 10 X higher than
+                others in Biotechnology
               </p>
             </motion.div>
           </div>
