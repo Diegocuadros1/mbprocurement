@@ -45,7 +45,7 @@ export const CaseStudies = () => {
           </h2>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             Explore how founders achieved significant savings and efficiency
-            gains with Mission Booster Procurement.
+            gains with ProcureWide.
           </p>
         </motion.div>
 

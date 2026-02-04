@@ -146,7 +146,7 @@ const Auth = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <main className="pt-24 pb-16">
+      <main className="pt-40 pb-16">
         <div className="container mx-auto px-4 flex items-center justify-center min-h-[calc(100vh-200px)]">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -160,15 +160,15 @@ const Auth = () => {
                   {isLogin
                     ? "Welcome Back"
                     : emailConfirm
-                    ? "Confirm your account"
-                    : "Create Account"}
+                      ? "Confirm your account"
+                      : "Create Account"}
                 </h1>
                 <p className="text-muted-foreground">
                   {isLogin
                     ? "Sign in to access your account"
                     : emailConfirm
-                    ? "Please check you email to verify your account!"
-                    : "Get started with Mission Booster"}
+                      ? "Please check you email to verify your account!"
+                      : "Get started with Mission Booster"}
                 </p>
               </div>
               {!emailConfirm && (
@@ -317,8 +317,8 @@ const Auth = () => {
                       {loading
                         ? "Please wait..."
                         : isLogin
-                        ? "Sign In"
-                        : "Create Account"}
+                          ? "Sign In"
+                          : "Create Account"}
                     </Button>
                   </form>
 

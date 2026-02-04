@@ -61,10 +61,7 @@ export default function NavbarClient({
             />
             <div className="hidden sm:block">
               <span className="font-bold text-lg text-foreground">
-                Mission Booster
-              </span>
-              <span className="block text-xs text-muted-foreground -mt-1">
-                Procurement
+                ProcureWide
               </span>
             </div>
           </Link>
