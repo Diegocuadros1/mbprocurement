@@ -39,7 +39,7 @@ const employees = [
     tags: [],
     imageURL: "/ali_darwish.png",
     linkedIn: "https://www.linkedin.com/in/alidarwish1",
-    email: "adarwish@mbprocurement.com",
+    email: "adarwish@procurewide.com",
     phone: "(512)-581-1996",
   },
   {
@@ -49,7 +49,7 @@ const employees = [
     tags: [],
     imageURL: "/diego_alcala.png",
     linkedIn: "https://www.linkedin.com/in/diego-alcala-416915297",
-    email: "dalcala@mbprocurement.com",
+    email: "dalcala@procurewide.com",
     phone: "(562)-704-9157",
   },
 ];
