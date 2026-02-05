@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     siteName: "ProcureWide",
     images: [
       {
-        url: "icon.svg",
+        url: "logo.png",
         width: 600,
         height: 450,
         alt: "ProcureWide",
