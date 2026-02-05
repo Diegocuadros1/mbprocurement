@@ -20,7 +20,7 @@ export const Footer = () => {
   return (
     <footer className="bg-primary text-primary-foreground">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex justify-between">
+        <div className="flex flex-col sm:flex-row justify-between">
           {/* Brand Column */}
           <div className="lg:col-span-2">
             <Link href="#home" className="flex items-center gap-3 mb-6">
@@ -49,7 +49,7 @@ export const Footer = () => {
           </div>
 
           {/* Links Columns */}
-          <div className="flex gap-30">
+          <div className="flex gap-30 mt-10 sm:mt-0">
             <div>
               <h4 className="font-semibold mb-4">Company</h4>
               <ul className="space-y-3">
