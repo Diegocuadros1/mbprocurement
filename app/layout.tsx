@@ -16,19 +16,19 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Mission Booster Procurement",
+  title: "ProcureWide",
   description: "Made by Scientists, for Science",
   openGraph: {
-    title: "Mission Booster Procurement",
+    title: "ProcureWide",
     description: "Made by Scientists, for Science",
-    url: "https://mbprocurement.com",
-    siteName: "Mission Booster Procurement",
+    url: "https://procurewide.com",
+    siteName: "ProcureWide",
     images: [
       {
         url: "FAQ.png",
         width: 600,
         height: 450,
-        alt: "Mission Booster Procurement",
+        alt: "ProcureWide",
       },
     ],
     type: "website",
