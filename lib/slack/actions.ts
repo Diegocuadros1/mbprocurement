@@ -67,7 +67,7 @@ async function safeSlackCall<T>(
     }
 
     throw e;
-  }
+  } 
 }
 
 export async function getOrCreatePublicChannelId(rawName: string) {
