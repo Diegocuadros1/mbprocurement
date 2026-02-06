@@ -1,7 +1,7 @@
 import "server-only";
 import { WebClient } from "@slack/web-api";
 
-const token = process.env.SLACK_BOT_TOKEN;
+const token = process.env.SLACK_BOT_TOKEN_MBP;
 if (!token) {
   throw new Error(
     "Missing SLACK_BOT_TOKEN. Add it to .env.local and restart the dev server."
