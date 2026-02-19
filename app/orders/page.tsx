@@ -18,7 +18,7 @@ export default async function OrdersPage() {
     <OrdersDashboard
       companyName={company.name}
       companyId={profile.company_id}
-      orders={orders}
+      orders={orders} 
       app_admin={false}
     />
   );
