@@ -86,11 +86,9 @@ export default function ViewOrder({
 
   const orderTotal = useMemo(() => {
     return items.reduce((sum, it) => {
-      const units = toNumber(it.units);
-      const unitPrice = toNumber(it.unit_price);
       const lineTotal = it.line_total
         ? toNumber(it.line_total)
-        : units * unitPrice;
+        : toNumber(it.units) * toNumber(it.delivered_price);
       return sum + lineTotal;
     }, 0);
   }, [items]);
@@ -125,11 +123,9 @@ export default function ViewOrder({
     if (!sortedItems.length) return;
 
     const rows = sortedItems.map((it, idx) => {
-      const units = toNumber(it.units);
-      const unitPrice = toNumber(it.unit_price);
       const lineTotal = it.line_total
         ? toNumber(it.line_total)
-        : units * unitPrice;
+        : toNumber(it.units) * toNumber(it.delivered_price);
 
       return {
         "#": idx + 1,
@@ -137,11 +133,11 @@ export default function ViewOrder({
         "SKU / Item #": it.item_number ?? "",
         Description: it.description ?? "",
         "Item Link": it.item_link ?? "",
-        Units: units,
+        Units: it.units,
         UOM: it.unit_of_measure ?? "",
-        "Unit Price (USD)": unitPrice,
+        "Unit Price (USD)": it.unit_price,
         "Delivered Price (USD)": it.delivered_price ?? "",
-        // "Line Total (USD)": Number(lineTotal.toFixed(2)),
+        "Line Total (USD)": Number(lineTotal.toFixed(2)),
         Ordered: it.is_ordered ? "Yes" : "No",
         "Ordered At": formatOrderedAtForExport(it.ordered_at),
         "SDS Link": it.sds_link ?? "",
@@ -484,7 +480,7 @@ export default function ViewOrder({
               </span>
             </p>
             <p className="text-sm text-muted-foreground">
-              Unit Cost Total:{" "}
+              Delivered Price Total:{" "}
               <span className="font-medium text-foreground">
                 {money(orderTotal)}
               </span>
