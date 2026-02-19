@@ -3,6 +3,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { ExportOrderItem, OrderItemInput } from "@/types";
+import { createAdminNotificationAction } from "@/lib/notifications/actions";
 
 export async function submitOrderAction(
   items: OrderItemInput[],
@@ -123,6 +124,20 @@ export async function submitOrderAction(
     await supabase.from("orders").delete().eq("id", order.id);
     throw new Error(itemsErr.message);
   }
+
+  // Notify admins of new order
+  const { data: companyRow } = await supabase
+    .from("companies")
+    .select("name")
+    .eq("id", targetCompanyId)
+    .single();
+
+  await createAdminNotificationAction(
+    "new_order",
+    "New Order Submitted",
+    `A new order was submitted for ${companyRow?.name ?? "a company"}.`,
+    `/orders/${order.id}`
+  );
 
   return { orderId: order.id as string };
 }

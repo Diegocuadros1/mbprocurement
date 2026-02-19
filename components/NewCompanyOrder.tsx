@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Check, ExternalLink, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, ExternalLink, Loader2, Package, Plus, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,11 @@ import { cn } from "@/lib/utils";
 
 import { useToast } from "@/hooks/use-toast";
 import { submitOrderAction } from "@/lib/orders/actions";
+import {
+  type SavedProduct,
+  saveProductAction,
+  fetchSavedProductsAction,
+} from "@/lib/saved-products/actions";
 import { formatSlackNewOrder, money, normalizeUrl } from "@/lib/helpers";
 import { notifySlack } from "@/app/actions/slack";
 
@@ -75,6 +80,12 @@ export default function NewCompanyOrder({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
 
+  // Saved products modal state
+  const [modalMode, setModalMode] = useState<"new" | "saved">("new");
+  const [savedProducts, setSavedProducts] = useState<SavedProduct[]>([]);
+  const [loadingSaved, setLoadingSaved] = useState(false);
+  const [isSaving, startSaveTransition] = useTransition();
+
   // Modal form state
   const [supplierName, setSupplierName] = useState("");
   const [sku, setSku] = useState("");
@@ -90,6 +101,87 @@ export default function NewCompanyOrder({
   const [orderNumber, setOrderNumber] = useState<string>("");
   const [trackingLink, setTrackingLink] = useState<string>("");
   const [markOrdered, setMarkOrdered] = useState<boolean>(false);
+
+  const loadSavedProducts = async () => {
+    if (loadingSaved) return;
+    setLoadingSaved(true);
+    try {
+      const products = await fetchSavedProductsAction();
+      setSavedProducts(products);
+    } catch {
+      toast({
+        title: "Failed to load saved products",
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingSaved(false);
+    }
+  };
+
+  const onSaveItem = () => {
+    const unitsNum = Number(units);
+    if (!supplierName.trim())
+      return inputErrorsNotify("Supplier name is required.");
+    if (!sku.trim()) return inputErrorsNotify("SKU / Item number is required.");
+    if (!description.trim())
+      return inputErrorsNotify("Description is required.");
+    if (!itemLink.trim()) return inputErrorsNotify("Item link is required.");
+    if (!Number.isFinite(unitsNum) || unitsNum <= 0)
+      return inputErrorsNotify("Units must be a number greater than 0.");
+    if (!uom.trim())
+      return inputErrorsNotify("Unit of measurement is required.");
+
+    startSaveTransition(async () => {
+      try {
+        await saveProductAction({
+          supplier_name: supplierName.trim(),
+          item_number: sku.trim(),
+          description: description.trim(),
+          item_link: normalizeUrl(itemLink),
+          units: unitsNum,
+          unit_of_measure: uom.trim(),
+          unit_price: unitPrice ? Number(unitPrice) : null,
+        });
+        toast({
+          title: "Product saved!",
+          description: "Available in your saved products.",
+        });
+      } catch (e) {
+        toast({
+          title: "Save failed",
+          description: e instanceof Error ? e.message : "Unknown error",
+          variant: "destructive",
+        });
+      }
+    });
+  };
+
+  const addFromSaved = (p: SavedProduct) => {
+    const id =
+      typeof crypto !== "undefined" && "randomUUID" in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const next: OrderItem = {
+      id,
+      supplierName: p.supplier_name,
+      sku: p.item_number,
+      description: p.description,
+      itemLink: p.item_link,
+      units: p.units,
+      uom: p.unit_of_measure,
+      unitPrice: p.unit_price ?? 0,
+      deliveredPrice: null,
+      sdsLink: null,
+      orderNumber: null,
+      trackingLink: null,
+      ordered: false,
+    };
+
+    setItems((prev) => [next, ...prev]);
+    setOpen(false);
+    setModalMode("new");
+  };
 
   const resetForm = () => {
     setSupplierName("");
@@ -219,7 +311,7 @@ export default function NewCompanyOrder({
           items_amt: items.length,
           companyName,
           userName: username,
-          url: `${origin}/dashboard/orders/${orderId}`,
+          url: `${origin}/orders/${orderId}`,
         };
 
         const slackText = formatSlackNewOrder(payload);
@@ -244,7 +336,7 @@ export default function NewCompanyOrder({
   };
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background pt-24">
+    <div className="relative min-h-screen overflow-hidden bg-background pt-8">
       {/* Background Pattern */}
       <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.5)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.5)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_55%_at_50%_0%,#000_70%,transparent_115%)]" />
       <div className="absolute top-16 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
@@ -411,12 +503,111 @@ export default function NewCompanyOrder({
         </motion.div>
 
         {/* Add Item Modal */}
-        <Dialog open={open} onOpenChange={setOpen}>
+        <Dialog
+          open={open}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              resetForm();
+              setModalMode("new");
+            }
+            setOpen(isOpen);
+          }}
+        >
           <DialogContent className="sm:max-w-[800px] rounded-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Item</DialogTitle>
+              <DialogTitle>Add Item</DialogTitle>
             </DialogHeader>
 
+            {/* Mode toggle — users only */}
+            {!app_admin && (
+              <div className="flex gap-1 p-1 bg-muted/30 rounded-xl border border-border/50">
+                <button
+                  type="button"
+                  onClick={() => setModalMode("new")}
+                  className={cn(
+                    "flex-1 py-1.5 text-sm rounded-lg font-medium transition-colors cursor-pointer",
+                    modalMode === "new"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  New Item
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalMode("saved");
+                    loadSavedProducts();
+                  }}
+                  className={cn(
+                    "flex-1 py-1.5 text-sm rounded-lg font-medium transition-colors cursor-pointer",
+                    modalMode === "saved"
+                      ? "bg-background shadow-sm text-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Saved Items
+                </button>
+              </div>
+            )}
+
+            {/* Saved Items list */}
+            {modalMode === "saved" && (
+              <div className="min-h-[200px]">
+                {loadingSaved ? (
+                  <div className="flex items-center justify-center py-16">
+                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                  </div>
+                ) : savedProducts.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                    <Package className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">
+                      No saved products yet. Fill in the form and click{" "}
+                      <span className="font-medium">Save Item</span> to save one.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {savedProducts.map((p) => (
+                      <div
+                        key={p.id}
+                        className="flex items-start justify-between gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3"
+                      >
+                        <div className="flex-1 min-w-0 space-y-0.5">
+                          <p className="text-sm font-medium text-foreground truncate">
+                            {p.supplier_name}{" "}
+                            <span className="font-mono text-xs text-muted-foreground">
+                              {p.item_number}
+                            </span>
+                          </p>
+                          <p className="text-xs text-muted-foreground line-clamp-1">
+                            {p.description}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {p.units} {p.unit_of_measure}
+                            {p.unit_price != null
+                              ? ` · ${money(p.unit_price)}`
+                              : ""}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="rounded-xl shrink-0 cursor-pointer"
+                          onClick={() => addFromSaved(p)}
+                        >
+                          <Plus className="mr-1.5 h-3.5 w-3.5" />
+                          Add
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* New Item form */}
+            {modalMode === "new" && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>
@@ -461,10 +652,6 @@ export default function NewCompanyOrder({
                   onChange={(e) => setItemLink(e.target.value)}
                   placeholder="https://..."
                 />
-                <p className="text-xs text-muted-foreground">
-                  Tip: If you paste without “https://”, we’ll add it
-                  automatically.
-                </p>
               </div>
 
               <div className="space-y-2">
@@ -575,6 +762,7 @@ export default function NewCompanyOrder({
                 </>
               )}
             </div>
+            )}
 
             <DialogFooter className="mt-2 gap-2 sm:gap-0">
               <Button
@@ -589,14 +777,31 @@ export default function NewCompanyOrder({
                 Cancel
               </Button>
 
-              <Button
-                type="button"
-                className="rounded-2xl cursor-pointer"
-                onClick={onAddItem}
-              >
-                <Plus className="mr-2 h-4 w-4" />
-                Add Item
-              </Button>
+              {modalMode === "new" && (
+                <>
+                  {!app_admin && (
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      className="rounded-2xl cursor-pointer"
+                      disabled={isSaving}
+                      onClick={onSaveItem}
+                    >
+                      <Bookmark className="mr-2 h-4 w-4" />
+                      {isSaving ? "Saving..." : "Save Item"}
+                    </Button>
+                  )}
+
+                  <Button
+                    type="button"
+                    className="rounded-2xl cursor-pointer"
+                    onClick={onAddItem}
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Add Item
+                  </Button>
+                </>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>

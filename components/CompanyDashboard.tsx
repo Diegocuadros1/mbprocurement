@@ -40,7 +40,7 @@ export default function CompaniesDashboard({
       <div className="absolute bottom-16 left-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
 
       {/* Content */}
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-30 sm:px-6">
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
         <motion.div
           initial={{ opacity: 0, y: 14 }}
           animate={{ opacity: 1, y: 0 }}
@@ -87,7 +87,7 @@ export default function CompaniesDashboard({
                 key={company.id}
                 company={company}
                 onClick={() =>
-                  router.push(`/dashboard/companies/${company.id}`)
+                  router.push(`/companies/${company.id}`)
                 }
               />
             ))}

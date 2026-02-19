@@ -1,29 +1,29 @@
-import OrdersDashboard from "@/components/CompanyOrders";
+import NewCompanyOrder from "@/components/NewCompanyOrder";
 import { requireProfile } from "@/lib/auth";
 import { fetchCompanyData } from "@/lib/companies";
-import { fetchCompanyOrders } from "@/lib/orders";
 import { redirect } from "next/navigation";
 
-export default async function OrderPage({
+export default async function NewOrderPage({
   params,
 }: {
   params: { company_id: string };
 }) {
   const { company_id } = await params;
-  const { user, profile } = await requireProfile("/auth");
+
+  const { profile } = await requireProfile("/auth");
 
   const isAdmin = profile.role === "app_admin";
+  const username = profile.username;
 
   if (!isAdmin) redirect("/dashboard");
 
-  const orders = await fetchCompanyOrders(company_id);
   const company = await fetchCompanyData(company_id);
 
   return (
-    <OrdersDashboard
+    <NewCompanyOrder
       companyName={company.name}
       companyId={company_id}
-      orders={orders}
+      username={username}
       app_admin={isAdmin}
     />
   );

@@ -40,6 +40,7 @@ import {
 } from "@/components/ui/table";
 
 import { updateOrderItemAction } from "@/lib/orders/order-item.actions";
+// import { markOrderPlacedAction } from "@/lib/orders/place-order.actions";
 import { useToast } from "@/hooks/use-toast";
 import type { Order, OrderItem } from "@/types";
 
@@ -264,7 +265,7 @@ export default function ViewOrder({
       <div className="absolute top-16 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
       <div className="absolute bottom-16 left-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 sm:px-6">
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
@@ -315,6 +316,35 @@ export default function ViewOrder({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            {/* {isAdmin && !order.is_placed && (
+              <Button
+                variant="accent"
+                className="rounded-2xl cursor-pointer"
+                disabled={isPending}
+                onClick={() => {
+                  startTransition(async () => {
+                    try {
+                      await markOrderPlacedAction(order.id);
+                      toast({ title: "Order marked as placed!" });
+                      router.refresh();
+                    } catch (err: unknown) {
+                      toast({
+                        title: "Failed to place order",
+                        description: err instanceof Error ? err.message : "Unknown error",
+                        variant: "destructive",
+                      });
+                    }
+                  });
+                }}
+              >
+                {isPending ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                Mark as Placed
+              </Button>
+            )} */}
             <Button
               variant="secondary"
               className="rounded-2xl cursor-pointer"
@@ -522,22 +552,27 @@ export default function ViewOrder({
                 </div>
 
                 <div className="space-y-1 sm:col-span-2">
-                  <p className="text-xs text-muted-foreground">Item Link</p>
-                  {selectedItem.item_link ? (
+                <p className="text-xs text-muted-foreground">Item Link</p>
+
+                {selectedItem.item_link ? (
+                  <div className="min-w-0 w-full">
                     <a
                       href={selectedItem.item_link}
                       target="_blank"
                       rel="noreferrer"
-                      className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                      className="inline-flex w-full min-w-0 items-center gap-1 text-xs text-muted-foreground hover:text-foreground"
                     >
-                      {selectedItem.item_link}{" "}
-                      <ExternalLink className="h-4 w-4" />
-                    </a>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">—</p>
-                  )}
-                </div>
+                      <span className="min-w-0 flex-1 truncate" title={selectedItem.item_link}>
+                        {selectedItem.item_link}
+                      </span>
 
+                      <ExternalLink className="h-4 w-4 shrink-0" />
+                    </a>
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">—</p>
+                )}
+              </div>
                 <div className="space-y-1">
                   <p className="text-xs text-muted-foreground">Quantity</p>
                   <p className="text-sm">
@@ -571,35 +606,52 @@ export default function ViewOrder({
 
                     <div className="space-y-1">
                       <p className="text-xs text-muted-foreground">SDS Link</p>
+
+                      {typeof selectedItem.sds_link === "string" && selectedItem.sds_link ? (
+                        <a
+                          href={selectedItem.sds_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex w-full min-w-0 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          <span className="min-w-0 flex-1 truncate" title={selectedItem.sds_link}>
+                            {selectedItem.sds_link}
+                          </span>
+                          <ExternalLink className="h-4 w-4 shrink-0" />
+                        </a>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">—</p>
+                      )}
+                    </div>
+
+                    <div className="space-y-1">
+                      <p className="text-xs text-muted-foreground">Order Number</p>
                       <p className="text-sm">
-                        {typeof selectedItem.sds_link === "string"
-                          ? selectedItem.sds_link
-                          : "—"}
+                        {typeof selectedItem.order_number === "string" ? selectedItem.order_number : "—"}
                       </p>
                     </div>
 
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">
-                        Order Number
-                      </p>
-                      <p className="text-sm">
-                        {typeof selectedItem.order_number === "string"
-                          ? selectedItem.order_number
-                          : "—"}
-                      </p>
-                    </div>
-
-                    <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">
-                        Tracking Link
-                      </p>
-                      <p className="text-sm">
-                        {typeof selectedItem.tracking_link === "string"
-                          ? selectedItem.tracking_link
-                          : "—"}
-                      </p>
-                    </div>
-
+                      <p className="text-xs text-muted-foreground">Tracking Link</p> 
+                      {typeof selectedItem.tracking_link === "string" && selectedItem.tracking_link ? (
+                        <a
+                          href={selectedItem.tracking_link}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex w-full min-w-0 items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+                        >
+                          <span
+                            className="min-w-0 flex-1 truncate"
+                            title={selectedItem.tracking_link}
+                          >
+                            {selectedItem.tracking_link}
+                          </span>
+                          <ExternalLink className="h-4 w-4 shrink-0" />
+                        </a>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">—</p>
+                      )}
+                    </div> 
                     <div className="space-y-1 sm:col-span-2">
                       <p className="text-xs text-muted-foreground">Ordered</p>
                       <p className="text-sm">
@@ -713,7 +765,7 @@ export default function ViewOrder({
             >
               <Button
                 variant="ghost"
-                className="rounded-2xl"
+                className="rounded-2xl cursor-pointer"
                 onClick={() => setModalOpen(false)}
                 disabled={isPending}
               >

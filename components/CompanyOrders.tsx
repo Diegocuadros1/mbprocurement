@@ -35,7 +35,7 @@ export default function OrdersDashboard({
   const [query, setQuery] = useState("");
 
   const newOrderUrl = !app_admin
-    ? "/dashboard/orders/new"
+    ? "/orders/new"
     : `/dashboard/companies/${companyId}/new`;
 
   const [downloadingByGroup, setDownloadingByGroup] = useState<
@@ -246,7 +246,7 @@ export default function OrdersDashboard({
       <div className="absolute top-16 right-1/4 h-96 w-96 rounded-full bg-accent/10 blur-3xl" />
       <div className="absolute bottom-16 left-1/4 h-72 w-72 rounded-full bg-primary/5 blur-3xl" />
 
-      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-10 mt-30 sm:px-6">
+      <main className="relative z-10 mx-auto max-w-6xl px-4 pb-16 pt-8 sm:px-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: 14 }}
@@ -333,7 +333,7 @@ export default function OrdersDashboard({
                       order={order}
                       formatMoney={formatMoney}
                       onClick={() =>
-                        router.push(`/dashboard/orders/${order.id}`)
+                        router.push(`/orders/${order.id}`)
                       }
                     />
                   ))}

@@ -1,35 +1,46 @@
-import CompaniesDashboard from "@/components/CompanyDashboard";
-import OrdersDashboard from "@/components/CompanyOrders";
+import AdminDashboard from "@/components/AdminDashboard";
+import UserDashboard from "@/components/UserDashboard";
 import { requireProfile } from "@/lib/auth";
 import { fetchAllCompanies, fetchCompanyData } from "@/lib/companies";
-import { fetchCompanyOrders } from "@/lib/orders";
+import { fetchAllOrders, fetchCompanyOrders } from "@/lib/orders";
 
 export default async function Dashboard() {
-  const { user, profile } = await requireProfile("/auth");
+  const { profile } = await requireProfile("/auth");
 
   const isAdmin = profile.role === "app_admin";
 
   if (isAdmin) {
-    const list_of_companies = await fetchAllCompanies();
+    const [companies, orders] = await Promise.all([
+      fetchAllCompanies(),
+      fetchAllOrders(),
+    ]);
+
+    const nameById = Object.fromEntries(companies.map((c) => [c.id, c.name]));
+    const allOrders = orders.map((o) => ({
+      ...o,
+      company_name: nameById[o.company_id] ?? "Unknown",
+    }));
 
     return (
-      <CompaniesDashboard
-        companies={list_of_companies}
-        userName={profile.username}
-      />
-    );
-  } else {
-    const company = await fetchCompanyData(profile.company_id);
-
-    const orders = await fetchCompanyOrders(profile.company_id);
-
-    return (
-      <OrdersDashboard
-        companyName={company.name}
-        companyId={profile.company_id}
-        orders={orders}
-        app_admin={isAdmin}
+      <AdminDashboard
+        username={profile.username}
+        companies={companies}
+        allOrders={allOrders}
       />
     );
   }
+
+  const [company, orders] = await Promise.all([
+    fetchCompanyData(profile.company_id!),
+    fetchCompanyOrders(profile.company_id!),
+  ]);
+
+  return (
+    <UserDashboard
+      companyName={company.name}
+      companyId={profile.company_id!}
+      orders={orders}
+      username={profile.username}
+    />
+  );
 }

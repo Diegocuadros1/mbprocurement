@@ -42,6 +42,7 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 import { notifySlack } from "../actions/slack";
+import { createAdminNotificationAction } from "@/lib/notifications/actions";
 import {
   getPricingFormatSlackMessage,
   money,
@@ -256,6 +257,12 @@ export default function GetPricingPage() {
         mimeType:
           "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
+
+      await createAdminNotificationAction(
+        "pricing",
+        "New Pricing Request",
+        `${payload.company.legalName} submitted an example order with ${sortedItems.length} item(s).`
+      );
 
       toast({
         title: "Submitted!",

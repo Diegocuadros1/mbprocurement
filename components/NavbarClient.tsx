@@ -3,7 +3,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut, User, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
 import Link from "next/link";
@@ -17,17 +17,12 @@ const navLinks = [
   { name: "Contact", href: "/contact" },
 ];
 
-const navLinksLoggedIn = [
-  { name: "Dashboard", href: "/dashboard" },
-  { name: "About", href: "/about" },
-  { name: "Get Pricing", href: "/get-pricing" },
-  { name: "Contact", href: "/contact" },
-];
-
 export default function NavbarClient({
   username,
+  unreadCount = 0,
 }: {
   username: string | null;
+  unreadCount?: number;
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const supabase = createClient();
@@ -41,6 +36,74 @@ export default function NavbarClient({
     router.refresh();
   };
 
+  /* ── Slim navbar for logged-in users ── */
+  if (isLoggedIn) {
+    return (
+      <motion.nav
+        initial={{ y: -48 }}
+        animate={{ y: 0 }}
+        transition={{ duration: 0.4, ease: "easeOut" }}
+        className="fixed top-0 left-0 right-0 z-50 h-12 bg-card/90 backdrop-blur-lg border-b border-border/50 flex items-center"
+      >
+        <div className="flex items-center justify-between w-full px-4">
+          {/* Logo */}
+          <Link href="/dashboard" className="flex items-center gap-2 group">
+            <Image
+              src="/logo.svg"
+              alt="ProcureWide"
+              width={28}
+              height={28}
+              className="group-hover:scale-105 transition-transform"
+            />
+            <span className="font-bold text-sm text-foreground hidden sm:block">
+              ProcureWide
+            </span>
+          </Link>
+
+          {/* User + Bell + Logout */}
+          <div className="flex items-center gap-1">
+            <Link href="/dashboard">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="cursor-pointer gap-1.5 text-xs h-8 px-3"
+              >
+                <User className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{username}</span>
+              </Button>
+            </Link>
+
+            <Link href="/dashboard/notifications">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative cursor-pointer h-8 w-8 px-0 text-muted-foreground hover:text-foreground"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-1 right-1 flex h-3.5 w-3.5 items-center justify-center rounded-full bg-accent text-[9px] font-bold text-accent-foreground leading-none">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </Button>
+            </Link>
+
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleLogout}
+              className="cursor-pointer gap-1.5 text-xs h-8 px-3 text-muted-foreground hover:text-foreground"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
+            </Button>
+          </div>
+        </div>
+      </motion.nav>
+    );
+  }
+
+  /* ── Full navbar for logged-out users ── */
   return (
     <motion.nav
       initial={{ y: -100 }}
@@ -68,7 +131,7 @@ export default function NavbarClient({
 
           {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
-            {(isLoggedIn ? navLinksLoggedIn : navLinks).map((link) => (
+            {navLinks.map((link) => (
               <Link
                 key={link.name}
                 href={link.href}
@@ -82,36 +145,16 @@ export default function NavbarClient({
 
           {/* CTA Buttons */}
           <div className="hidden lg:flex items-center gap-3">
-            {!isLoggedIn ? (
-              <>
-                <Link href="/auth">
-                  <Button variant="ghost" className="cursor-pointer" size="sm">
-                    Login
-                  </Button>
-                </Link>
-                <Link href="/questionnaire">
-                  <Button variant="accent" className="cursor-pointer" size="sm">
-                    Get Started
-                  </Button>
-                </Link>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  className="cursor-pointer"
-                  size="sm"
-                  onClick={handleLogout}
-                >
-                  Logout
-                </Button>
-                <Link href="/dashboard">
-                  <Button variant="accent" className="cursor-pointer" size="sm">
-                    Welcome {username}!
-                  </Button>
-                </Link>
-              </>
-            )}
+            <Link href="/auth">
+              <Button variant="ghost" className="cursor-pointer" size="sm">
+                Login
+              </Button>
+            </Link>
+            <Link href="/questionnaire">
+              <Button variant="accent" className="cursor-pointer" size="sm">
+                Get Started
+              </Button>
+            </Link>
           </div>
 
           {/* Mobile Menu Toggle */}
@@ -135,7 +178,7 @@ export default function NavbarClient({
             className="lg:hidden bg-card border-b border-border"
           >
             <div className="container mx-auto px-4 py-4 space-y-3">
-              {(isLoggedIn ? navLinksLoggedIn : navLinks).map((link) => (
+              {navLinks.map((link) => (
                 <Link
                   key={link.name}
                   href={link.href}
@@ -147,35 +190,16 @@ export default function NavbarClient({
               ))}
 
               <div className="flex gap-3 pt-4">
-                {!isLoggedIn ? (
-                  <>
-                    <Link href="/auth" className="flex-1">
-                      <Button variant="outline" className="w-full">
-                        Login
-                      </Button>
-                    </Link>
-                    <Link href="/questionnaire" className="flex-1">
-                      <Button variant="accent" className="w-full">
-                        Get Started
-                      </Button>
-                    </Link>
-                  </>
-                ) : (
-                  <>
-                    <Button
-                      className="flex-1 cursor-pointer"
-                      variant="outline"
-                      onClick={handleLogout}
-                    >
-                      Logout
-                    </Button>
-                    <Link href="/dashboard" className="flex-1 cursor-pointer">
-                      <Button variant="accent" className="w-full">
-                        Welcome {username}!
-                      </Button>
-                    </Link>
-                  </>
-                )}
+                <Link href="/auth" className="flex-1">
+                  <Button variant="outline" className="w-full">
+                    Login
+                  </Button>
+                </Link>
+                <Link href="/questionnaire" className="flex-1">
+                  <Button variant="accent" className="w-full">
+                    Get Started
+                  </Button>
+                </Link>
               </div>
             </div>
           </motion.div>

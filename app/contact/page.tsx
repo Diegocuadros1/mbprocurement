@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Phone, Mail, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { notifySlack } from "../actions/slack";
+import { createAdminNotificationAction } from "@/lib/notifications/actions";
 
 const contactInfo = [
   {
@@ -45,9 +46,15 @@ const Contact = () => {
           "contact-outreach",
           `
           *Contact Form Submitted!*
-          Name: ${formData.firstName} ${formData.lastName}: 
+          Name: ${formData.firstName} ${formData.lastName}:
           Email: ${formData.email}
           message: ${formData.message}`,
+        );
+
+        await createAdminNotificationAction(
+          "contact",
+          "New Contact Message",
+          `${formData.firstName} ${formData.lastName} (${formData.email}) sent a message.`
         );
 
         toast({

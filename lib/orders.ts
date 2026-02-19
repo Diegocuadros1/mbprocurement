@@ -41,6 +41,30 @@ export async function fetchCompanyOrders(companyId: string): Promise<CompanyOrde
   return (data ?? []) as CompanyOrder[];
 }
 
+export async function fetchAllOrders(): Promise<CompanyOrder[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("orders")
+    .select(`
+      id,
+      company_id,
+      order_date,
+      order_time,
+      is_placed,
+      placed_at,
+      total_cost,
+      created_at
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(`fetchAllOrders failed: ${error.message}`);
+  }
+
+  return (data ?? []) as CompanyOrder[];
+}
+
 export async function fetchOrderById(orderId: string) {
   const supabase = await createClient();
 
