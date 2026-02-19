@@ -40,7 +40,7 @@ import {
 } from "@/components/ui/table";
 
 import { updateOrderItemAction } from "@/lib/orders/order-item.actions";
-// import { markOrderPlacedAction } from "@/lib/orders/place-order.actions";
+// markOrderPlacedAction removed — order placement is handled by the DB trigger
 import { useToast } from "@/hooks/use-toast";
 import type { Order, OrderItem } from "@/types";
 
@@ -316,35 +316,6 @@ export default function ViewOrder({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-            {/* {isAdmin && !order.is_placed && (
-              <Button
-                variant="accent"
-                className="rounded-2xl cursor-pointer"
-                disabled={isPending}
-                onClick={() => {
-                  startTransition(async () => {
-                    try {
-                      await markOrderPlacedAction(order.id);
-                      toast({ title: "Order marked as placed!" });
-                      router.refresh();
-                    } catch (err: unknown) {
-                      toast({
-                        title: "Failed to place order",
-                        description: err instanceof Error ? err.message : "Unknown error",
-                        variant: "destructive",
-                      });
-                    }
-                  });
-                }}
-              >
-                {isPending ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Check className="mr-2 h-4 w-4" />
-                )}
-                Mark as Placed
-              </Button>
-            )} */}
             <Button
               variant="secondary"
               className="rounded-2xl cursor-pointer"
