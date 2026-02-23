@@ -36,7 +36,7 @@ export default function OrdersDashboard({
 
   const newOrderUrl = !app_admin
     ? "/orders/new"
-    : `/dashboard/companies/${companyId}/new`;
+    : `/companies/${companyId}/new`;
 
   const [downloadingByGroup, setDownloadingByGroup] = useState<
     Record<string, boolean>
