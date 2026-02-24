@@ -14,7 +14,7 @@ const contactInfo = [
   {
     icon: MapPin,
     title: "California Office",
-    details: ["1650 Harbor Bay Parkway, Suite 220", "Alameda, CA 94502"],
+    details: ["5414 Oberlin Drive STE 150 San Diego, California 92121 United States"],
   },
   {
     icon: Phone,
