@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowLeft, Bookmark, Check, ExternalLink, Loader2, Package, Plus, Trash2, X } from "lucide-react";
+import { ArrowLeft, Bookmark, Check, Download, ExternalLink, FileSpreadsheet, Loader2, Package, Pencil, Plus, Trash2, X } from "lucide-react";
+import * as XLSX from "xlsx";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -80,8 +81,12 @@ export default function NewCompanyOrder({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
 
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   // Saved products modal state
-  const [modalMode, setModalMode] = useState<"new" | "saved">("new");
+  const [modalMode, setModalMode] = useState<"new" | "saved" | "edit">("new");
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [savedProducts, setSavedProducts] = useState<SavedProduct[]>([]);
   const [loadingSaved, setLoadingSaved] = useState(false);
   const [isSaving, startSaveTransition] = useTransition();
@@ -101,6 +106,141 @@ export default function NewCompanyOrder({
   const [orderNumber, setOrderNumber] = useState<string>("");
   const [trackingLink, setTrackingLink] = useState<string>("");
   const [markOrdered, setMarkOrdered] = useState<boolean>(false);
+
+  const importFromFile = async (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["csv", "xlsx", "xls"].includes(ext ?? "")) {
+      toast({
+        title: "Unsupported file type",
+        description: "Please use a CSV or XLSX file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      const pick = (row: Record<string, unknown>, ...candidates: string[]): string => {
+        for (const key of Object.keys(row)) {
+          if (candidates.includes(norm(key))) return String(row[key] ?? "").trim();
+        }
+        return "";
+      };
+
+      const newItems: OrderItem[] = [];
+      const errors: string[] = [];
+
+      const dataRows = rows.filter((row) =>
+        Object.values(row).some((v) => String(v).trim() !== "")
+      );
+
+      dataRows.forEach((row, index) => {
+        const rowNum = index + 1;
+
+        const supplierNameVal = pick(row, "suppliername", "supplier", "vendor");
+        const skuVal = pick(row, "sku", "skuitemnumber","skuitem", "itemnumber", "itemno", "item", "partnumber", "part");
+        const descriptionVal = pick(row, "description", "desc", "name", "productname");
+        const rawLink = pick(row, "itemlink", "link", "url", "itemurl", "productlink");
+        const rawUnits = pick(row, "units", "nunits", "qty", "quantity");
+        const uomVal = pick(row, "unitofmeasurement", "uom", "unit", "unitofmeasure", "measure");
+        const rawPrice = pick(row, "unitpriceusd", "unitprice", "price", "cost");
+
+        const unitsNum = Number(rawUnits);
+        const unitPriceNum = Number(rawPrice);
+
+        let hasError = false;
+        const err = (field: string) => {
+          errors.push(`Row ${rowNum} is missing the field ${field}`);
+          hasError = true;
+        };
+
+        if (!supplierNameVal) err("Supplier Name");
+        if (!skuVal) err("SKU / Item #");
+        if (!descriptionVal) err("Description");
+        if (!rawLink) err("Item Link");
+        if (!rawUnits || !Number.isFinite(unitsNum) || unitsNum <= 0) err("# Units");
+        if (!uomVal) err("Unit of Measurement");
+        if (!rawPrice || !Number.isFinite(unitPriceNum) || unitPriceNum <= 0) err("Unit Price");
+
+        if (!hasError) {
+          const id =
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+          newItems.push({
+            id,
+            supplierName: supplierNameVal,
+            sku: skuVal,
+            description: descriptionVal,
+            itemLink: normalizeUrl(rawLink),
+            units: unitsNum,
+            uom: uomVal,
+            unitPrice: unitPriceNum,
+            deliveredPrice: null,
+            orderNumber: null,
+            sdsLink: null,
+            trackingLink: null,
+            ordered: false,
+          });
+        }
+      });
+
+      for (const msg of errors) {
+        toast({ title: msg, variant: "destructive" });
+      }
+
+      if (newItems.length === 0 && errors.length === 0) {
+        toast({
+          title: "No items found",
+          description: "The file had no recognizable rows. Make sure it matches the template.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (newItems.length > 0) {
+        setItems((prev) => [...prev, ...newItems]);
+        toast({
+          title: `${newItems.length} item${newItems.length === 1 ? "" : "s"} imported`,
+          description:
+            errors.length > 0
+              ? `${errors.length} row${errors.length === 1 ? "" : "s"} skipped due to missing fields.`
+              : "Rows appended from spreadsheet.",
+        });
+      }
+    } catch {
+      toast({
+        title: "Failed to parse file",
+        description: "Make sure the file is a valid CSV or XLSX.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) await importFromFile(file);
+  };
 
   const loadSavedProducts = async () => {
     if (loadingSaved) return;
@@ -197,6 +337,78 @@ export default function NewCompanyOrder({
     setOrderNumber("");
     setTrackingLink("");
     setMarkOrdered(false);
+  };
+
+  const openEditModal = (item: OrderItem) => {
+    setEditingId(item.id);
+    setSupplierName(item.supplierName);
+    setSku(item.sku);
+    setDescription(item.description);
+    setItemLink(item.itemLink);
+    setUnits(String(item.units));
+    setUom(item.uom);
+    setUnitPrice(String(item.unitPrice));
+    setDeliveredPrice(item.deliveredPrice != null ? String(item.deliveredPrice) : "");
+    setSdsLink(item.sdsLink ?? "");
+    setOrderNumber(item.orderNumber ?? "");
+    setTrackingLink(item.trackingLink ?? "");
+    setMarkOrdered(item.ordered);
+    setModalMode("edit");
+    setOpen(true);
+  };
+
+  const onSaveEdit = () => {
+    const unitsNum = Number(units);
+    const unitPriceNum = Number(unitPrice);
+
+    if (!supplierName.trim()) return inputErrorsNotify("Supplier name is required.");
+    if (!sku.trim()) return inputErrorsNotify("SKU / Item number is required.");
+    if (!description.trim()) return inputErrorsNotify("Description is required.");
+    if (!itemLink.trim()) return inputErrorsNotify("Item link is required.");
+    if (!Number.isFinite(unitsNum) || unitsNum <= 0) return inputErrorsNotify("Units must be a number greater than 0.");
+    if (!uom.trim()) return inputErrorsNotify("Unit of measurement is required.");
+    if (!Number.isFinite(unitPriceNum) || unitPriceNum <= 0) return inputErrorsNotify("Unit price must be greater than 0.");
+
+    let deliveredPriceNum: number | null = null;
+    if (app_admin) {
+      if (deliveredPrice.trim() !== "") {
+        const n = Number(deliveredPrice);
+        if (!Number.isFinite(n) || n <= 0) return inputErrorsNotify("Delivered price must be greater than 0.");
+        deliveredPriceNum = n;
+      } else {
+        return inputErrorsNotify("Delivered Price is required");
+      }
+      if (!sdsLink.trim()) return inputErrorsNotify("SDS link is required");
+      if (!trackingLink.trim()) return inputErrorsNotify("Tracking Link is required");
+      if (!orderNumber.trim()) return inputErrorsNotify("Order Number is required");
+      if (markOrdered === false) return inputErrorsNotify("Ordered must be marked true");
+    }
+
+    setItems((prev) =>
+      prev.map((it) =>
+        it.id === editingId
+          ? {
+              ...it,
+              supplierName: supplierName.trim(),
+              sku: sku.trim(),
+              description: description.trim(),
+              itemLink: normalizeUrl(itemLink),
+              units: unitsNum,
+              uom: uom.trim(),
+              unitPrice: unitPriceNum,
+              deliveredPrice: app_admin ? deliveredPriceNum : it.deliveredPrice,
+              sdsLink: app_admin && sdsLink.trim() ? normalizeUrl(sdsLink) : it.sdsLink,
+              trackingLink: app_admin && trackingLink.trim() ? normalizeUrl(trackingLink) : it.trackingLink,
+              orderNumber: app_admin && orderNumber.trim() ? orderNumber.trim() : it.orderNumber,
+              ordered: app_admin ? markOrdered : it.ordered,
+            }
+          : it
+      )
+    );
+
+    resetForm();
+    setEditingId(null);
+    setOpen(false);
   };
 
   const removeItem = (id: string) => {
@@ -369,6 +581,27 @@ export default function NewCompanyOrder({
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <a href="/order-template.xlsx" download>
+              <Button
+                type="button"
+                variant="ghost"
+                className="rounded-2xl cursor-pointer w-full sm:w-auto"
+              >
+                <Download className="mr-2 h-4 w-4" />
+                View Template
+              </Button>
+            </a>
+
+            <Button
+              type="button"
+              variant="secondary"
+              className="rounded-2xl cursor-pointer"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <FileSpreadsheet className="mr-2 h-4 w-4" />
+              Add Items with CSV/XLSX
+            </Button>
+
             <Button
               type="button"
               onClick={() => setOpen(true)}
@@ -395,8 +628,26 @@ export default function NewCompanyOrder({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.35, ease: "easeOut" }}
-          className="w-full rounded-3xl border border-border bg-card/60 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/40 sm:p-4"
+          className="relative w-full rounded-3xl border border-border bg-card/60 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/40 sm:p-4"
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
+          onDrop={handleDrop}
         >
+          {/* Drag overlay */}
+          <AnimatePresence>
+            {isDragOver && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-accent bg-accent/10 backdrop-blur-sm"
+              >
+                <FileSpreadsheet className="h-10 w-10 text-accent" />
+                <p className="text-sm font-medium text-accent">Drop your CSV or XLSX to import items</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
           {/* Table */}
           <div className="rounded-2xl border border-border bg-background/60 overflow-hidden">
             <Table>
@@ -462,16 +713,28 @@ export default function NewCompanyOrder({
                         {money(it.unitPrice)}
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon"
-                          className="rounded-xl cursor-pointer hover:bg-red-300/40"
-                          onClick={() => removeItem(it.id)}
-                          aria-label="Remove item"
-                        >
-                          <Trash2 className="h-4 w-4 text-muted-foreground" />
-                        </Button>
+                        <div className="inline-flex gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl cursor-pointer hover:bg-muted"
+                            onClick={() => openEditModal(it)}
+                            aria-label="Edit item"
+                          >
+                            <Pencil className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-xl cursor-pointer hover:bg-red-300/40"
+                            onClick={() => removeItem(it.id)}
+                            aria-label="Remove item"
+                          >
+                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </motion.tr>
                   ))}
@@ -482,8 +745,10 @@ export default function NewCompanyOrder({
                     <TableCell colSpan={9} className="py-10 text-center">
                       <p className="text-sm text-muted-foreground">
                         No items yet. Click{" "}
-                        <span className="font-medium">Add New Item</span> to
-                        create your first line item.
+                        <span className="font-medium">Add New Item</span> to add
+                        manually, or{" "}
+                        <span className="font-medium">Add Items with CSV/XLSX</span>{" "}
+                        — you can also drag and drop a file here.
                       </p>
                     </TableCell>
                   </TableRow>
@@ -502,6 +767,19 @@ export default function NewCompanyOrder({
           </div>
         </motion.div>
 
+        {/* Hidden file input for CSV/XLSX import */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx,.xls"
+          className="hidden"
+          onChange={async (e) => {
+            const file = e.target.files?.[0];
+            if (file) await importFromFile(file);
+            e.target.value = "";
+          }}
+        />
+
         {/* Add Item Modal */}
         <Dialog
           open={open}
@@ -509,17 +787,18 @@ export default function NewCompanyOrder({
             if (!isOpen) {
               resetForm();
               setModalMode("new");
+              setEditingId(null);
             }
             setOpen(isOpen);
           }}
         >
           <DialogContent className="sm:max-w-[800px] rounded-3xl max-h-[85vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add Item</DialogTitle>
+              <DialogTitle>{modalMode === "edit" ? "Edit Item" : "Add Item"}</DialogTitle>
             </DialogHeader>
 
-            {/* Mode toggle — users only */}
-            {!app_admin && (
+            {/* Mode toggle — users only, hidden in edit mode */}
+            {!app_admin && modalMode !== "edit" && (
               <div className="flex gap-1 p-1 bg-muted/30 rounded-xl border border-border/50">
                 <button
                   type="button"
@@ -606,8 +885,8 @@ export default function NewCompanyOrder({
               </div>
             )}
 
-            {/* New Item form */}
-            {modalMode === "new" && (
+            {/* New / Edit Item form */}
+            {(modalMode === "new" || modalMode === "edit") && (
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label>
@@ -777,9 +1056,9 @@ export default function NewCompanyOrder({
                 Cancel
               </Button>
 
-              {modalMode === "new" && (
+              {(modalMode === "new" || modalMode === "edit") && (
                 <>
-                  {!app_admin && (
+                  {!app_admin && modalMode === "new" && (
                     <Button
                       type="button"
                       variant="secondary"
@@ -792,14 +1071,24 @@ export default function NewCompanyOrder({
                     </Button>
                   )}
 
-                  <Button
-                    type="button"
-                    className="rounded-2xl cursor-pointer"
-                    onClick={onAddItem}
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    Add Item
-                  </Button>
+                  {modalMode === "edit" ? (
+                    <Button
+                      type="button"
+                      className="rounded-2xl cursor-pointer"
+                      onClick={onSaveEdit}
+                    >
+                      Save Changes
+                    </Button>
+                  ) : (
+                    <Button
+                      type="button"
+                      className="rounded-2xl cursor-pointer"
+                      onClick={onAddItem}
+                    >
+                      <Plus className="mr-2 h-4 w-4" />
+                      Add Item
+                    </Button>
+                  )}
                 </>
               )}
             </DialogFooter>
