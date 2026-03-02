@@ -11,6 +11,8 @@ import {
   Plus,
   ExternalLink,
   Trash2,
+  FileSpreadsheet,
+  Download,
 } from "lucide-react";
 
 import Link from "next/link";
@@ -80,6 +82,8 @@ export default function GetPricingPage() {
 
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<OrderItem[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Add-item modal fields
   const [supplierName, setSupplierName] = useState("");
@@ -94,6 +98,182 @@ export default function GetPricingPage() {
   const [legalName, setLegalName] = useState("");
   const [contacts, setContacts] = useState("");
   const [comments, setComments] = useState("");
+
+  const importFromFile = async (file: File) => {
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    if (!["csv", "xlsx", "xls"].includes(ext ?? "")) {
+      toast({
+        title: "Unsupported file type",
+        description: "Please use a CSV or XLSX file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const buffer = await file.arrayBuffer();
+      const workbook = XLSX.read(new Uint8Array(buffer), { type: "array" });
+      const sheet = workbook.Sheets[workbook.SheetNames[0]];
+      const rows: Record<string, unknown>[] = XLSX.utils.sheet_to_json(sheet, {
+        defval: "",
+      });
+
+      const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+
+      const pick = (
+        row: Record<string, unknown>,
+        ...candidates: string[]
+      ): string => {
+        for (const key of Object.keys(row)) {
+          if (candidates.includes(norm(key)))
+            return String(row[key] ?? "").trim();
+        }
+        return "";
+      };
+
+      const newItems: OrderItem[] = [];
+      const errors: string[] = [];
+
+      const dataRows = rows.filter((row) =>
+        Object.values(row).some((v) => String(v).trim() !== ""),
+      );
+
+      dataRows.forEach((row, index) => {
+        const rowNum = index + 1;
+
+        const supplierNameVal = pick(row, "suppliername", "supplier", "vendor");
+        const skuVal = pick(
+          row,
+          "sku",
+          "skuitemnumber",
+          "skuitem",
+          "itemnumber",
+          "itemno",
+          "item",
+          "partnumber",
+          "part",
+        );
+        const descriptionVal = pick(
+          row,
+          "description",
+          "desc",
+          "name",
+          "productname",
+        );
+        const rawLink = pick(
+          row,
+          "itemlink",
+          "link",
+          "url",
+          "itemurl",
+          "productlink",
+        );
+        const rawUnits = pick(row, "units", "nunits", "qty", "quantity");
+        const uomVal = pick(
+          row,
+          "unitofmeasurement",
+          "uom",
+          "unit",
+          "unitofmeasure",
+          "measure",
+        );
+        const rawPrice = pick(
+          row,
+          "unitpriceusd",
+          "unitprice",
+          "price",
+          "cost",
+        );
+
+        const unitsNum = Number(rawUnits);
+        const unitPriceNum = rawPrice === "" ? 0 : Number(rawPrice);
+
+        let hasError = false;
+        const err = (field: string) => {
+          errors.push(`Row ${rowNum} is missing the field ${field}`);
+          hasError = true;
+        };
+
+        if (!supplierNameVal) err("Supplier Name");
+        if (!skuVal) err("SKU / Item #");
+        if (!descriptionVal) err("Description");
+        if (!rawLink) err("Item Link");
+        if (!rawUnits || !Number.isFinite(unitsNum) || unitsNum <= 0)
+          err("# Units");
+        if (!uomVal) err("Unit of Measurement");
+
+        if (!hasError) {
+          const id =
+            typeof crypto !== "undefined" && "randomUUID" in crypto
+              ? crypto.randomUUID()
+              : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+          newItems.push({
+            id,
+            supplierName: supplierNameVal,
+            sku: skuVal,
+            description: descriptionVal,
+            itemLink: normalizeUrl(rawLink),
+            units: unitsNum,
+            uom: uomVal,
+            unitPrice:
+              Number.isFinite(unitPriceNum) && unitPriceNum >= 0
+                ? unitPriceNum
+                : 0,
+          });
+        }
+      });
+
+      for (const msg of errors) {
+        toast({ title: msg, variant: "destructive" });
+      }
+
+      if (newItems.length === 0 && errors.length === 0) {
+        toast({
+          title: "No items found",
+          description:
+            "The file had no recognizable rows. Make sure it matches the template.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (newItems.length > 0) {
+        setItems((prev) => [...prev, ...newItems]);
+        toast({
+          title: `${newItems.length} item${newItems.length === 1 ? "" : "s"} imported`,
+          description:
+            errors.length > 0
+              ? `${errors.length} row${errors.length === 1 ? "" : "s"} skipped due to missing fields.`
+              : "Rows appended from spreadsheet.",
+        });
+      }
+    } catch {
+      toast({
+        title: "Failed to parse file",
+        description: "Make sure the file is a valid CSV or XLSX.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragOver(false);
+    }
+  };
+
+  const handleDrop = async (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) await importFromFile(file);
+  };
 
   const resetAddItemForm = () => {
     setSupplierName("");
@@ -261,7 +441,7 @@ export default function GetPricingPage() {
       await createAdminNotificationAction(
         "pricing",
         "New Pricing Request",
-        `${payload.company.legalName} submitted an example order with ${sortedItems.length} item(s).`
+        `${payload.company.legalName} submitted an example order with ${sortedItems.length} item(s).`,
       );
 
       toast({
@@ -332,7 +512,6 @@ export default function GetPricingPage() {
           </motion.div>
         </div>
       </section>
-
       {/* Form */}
       <section className="py-16 lg:py-24 bg-card" ref={formRef}>
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -413,6 +592,27 @@ export default function GetPricingPage() {
                       className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-center"
                     >
                       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <a href="/order-template.xlsx" download>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="rounded-2xl cursor-pointer w-full sm:w-auto"
+                          >
+                            <Download className="mr-2 h-4 w-4" />
+                            View Template
+                          </Button>
+                        </a>
+
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          className="rounded-2xl cursor-pointer"
+                          onClick={() => fileInputRef.current?.click()}
+                        >
+                          <FileSpreadsheet className="mr-2 h-4 w-4" />
+                          Add Items with CSV/XLSX
+                        </Button>
+
                         <Button
                           type="button"
                           onClick={() => setOpen(true)}
@@ -428,8 +628,28 @@ export default function GetPricingPage() {
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
                       transition={{ duration: 0.35, ease: "easeOut" }}
-                      className="w-full rounded-3xl border border-border bg-card/60 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/40 sm:p-4"
+                      className="relative w-full rounded-3xl border border-border bg-card/60 p-3 shadow-sm backdrop-blur supports-[backdrop-filter]:bg-card/40 sm:p-4"
+                      onDragOver={handleDragOver}
+                      onDragLeave={handleDragLeave}
+                      onDrop={handleDrop}
                     >
+                      {/* Drag overlay */}
+                      <AnimatePresence>
+                        {isDragOver && (
+                          <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 rounded-3xl border-2 border-dashed border-accent bg-accent/10 backdrop-blur-sm"
+                          >
+                            <FileSpreadsheet className="h-10 w-10 text-accent" />
+                            <p className="text-sm font-medium text-accent">
+                              Drop your CSV or XLSX to import items
+                            </p>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
                       <div className="rounded-2xl border border-border bg-background/60 overflow-hidden">
                         <Table>
                           <TableHeader>
@@ -482,7 +702,7 @@ export default function GetPricingPage() {
                                         rel="noreferrer"
                                         className={cn(
                                           "inline-flex items-center gap-1 text-sm",
-                                          "text-muted-foreground hover:text-foreground transition"
+                                          "text-muted-foreground hover:text-foreground transition",
                                         )}
                                       >
                                         Open{" "}
@@ -525,12 +745,18 @@ export default function GetPricingPage() {
                                   colSpan={9}
                                   className="py-10 text-center"
                                 >
-                                  <p className="text-sm text-muted-foreground">
+                                  <p className="text-xs text-muted-foreground">
                                     No items yet. Click{" "}
                                     <span className="font-medium">
                                       Add New Item
                                     </span>{" "}
-                                    to create your first line item.
+                                    to add manually, or <br />
+                                    <br />
+                                    <span className="font-medium">
+                                      add Items with CSV/XLSX
+                                    </span>{" "}
+                                    using our template — you can also drag and
+                                    drop the populated file here.
                                   </p>
                                 </TableCell>
                               </TableRow>
@@ -548,6 +774,19 @@ export default function GetPricingPage() {
                         </p>
                       </div>
                     </motion.div>
+
+                    {/* Hidden file input for CSV/XLSX import */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (file) await importFromFile(file);
+                        e.target.value = "";
+                      }}
+                    />
 
                     {/* Add Item Modal */}
                     <Dialog open={open} onOpenChange={setOpen}>
