@@ -24,7 +24,7 @@ const contactInfo = [
   {
     icon: Mail,
     title: "Emails",
-    details: ["dalcala@mbprocurement.com", "adarwish@mbprocurement.com"],
+    details: ["dalcala@procurewide.com", "adarwish@procurewide.com"],
   },
 ];
 
@@ -258,16 +258,6 @@ const Contact = () => {
                     </div>
                   </motion.div>
                 ))}
-              </div>
-
-              <div className="p-6 bg-primary/5 rounded-xl border border-primary/10">
-                <h3 className="font-semibold text-foreground mb-2">
-                  Coming Soon
-                </h3>
-                <p className="text-muted-foreground">
-                  <strong>Michigan Office</strong> - We're expanding! Stay tuned
-                  for our new location.
-                </p>
               </div>
             </motion.div>
           </div>

@@ -353,7 +353,7 @@ const About = () => {
       </section>
 
       {/* Team Section */}
-      <section className="py-16 lg:py-24 bg-card">
+      {/* <section className="py-16 lg:py-24 bg-card">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
@@ -371,7 +371,6 @@ const About = () => {
             </p>
           </motion.div>
 
-          {/* Team list (stacked) */}
           <div className="flex flex-col gap-6 max-w-4xl mx-auto">
             {employees.map((member, index) => (
               <motion.div
@@ -385,7 +384,6 @@ const About = () => {
                 <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-accent/60 via-accent/20 to-transparent" />
 
                 <div className="flex flex-col sm:flex-row gap-5">
-                  {/* Bigger picture placeholder */}
                   <Image
                     src={member.imageURL}
                     alt={`${member.name} headshot`}
@@ -394,7 +392,6 @@ const About = () => {
                     className="h-30 w-30 rounded-2xl object-cover border border-accent/20"
                   />
 
-                  {/* Content */}
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                       <div>
@@ -406,7 +403,6 @@ const About = () => {
                         </p>
                       </div>
 
-                      {/* Links placeholder */}
                       <div className="flex flex-col md:flex-row items-start lg:items-center gap-3">
                         <div>
                           <span className="text-muted-foreground/50 lg:hidden">
@@ -463,7 +459,6 @@ const About = () => {
                   </div>
                 </div>
 
-                {/* subtle hover glow */}
                 <div className="pointer-events-none absolute -inset-12 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                   <div className="absolute inset-0 bg-[radial-gradient(circle_at_25%_15%,hsl(var(--accent)/0.18),transparent_55%)]" />
                 </div>
@@ -471,7 +466,7 @@ const About = () => {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
 
       {/* Vendors Section */}
       <section className="py-16 lg:py-24 bg-primary text-primary-foreground">

@@ -147,7 +147,7 @@ export const Features = () => {
           className="text-center max-w-3xl mx-auto mb-16"
         >
           <span className="inline-block px-4 py-1 rounded-full bg-accent/10 text-accent text-sm font-medium mb-4">
-            Why Mission Booster?
+            Why Procurewide?
           </span>
           <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6 text-balance">
             Procurement That Works <span className="text-accent">For You</span>

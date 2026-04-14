@@ -11,3 +11,4 @@ Inventory side
 Add a new section called manage lab inventory, and here you will be able to view the products that you have in you lab, which area they are in, expiration dates, and more. 
 Include a view only side, where people are able to view but not order, and send in requests, in which the admin can approve of. 
 
+Make the download spreadsheet feature nicer. 
