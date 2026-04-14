@@ -228,8 +228,7 @@ const Contact = () => {
                 </h2>
                 <p className="text-muted-foreground text-lg">
                   We're here to answer your questions and listen to your
-                  suggestions. Reach out to us through any of the following
-                  channels.
+                  suggestions.
                 </p>
               </div>
 
