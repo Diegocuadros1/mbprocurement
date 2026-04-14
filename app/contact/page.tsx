@@ -16,16 +16,16 @@ const contactInfo = [
     title: "California Office",
     details: ["5414 Oberlin Drive STE 150 San Diego, California 92121 United States"],
   },
-  {
-    icon: Phone,
-    title: "Phone",
-    details: ["Diego Alcala: (562)-704-9157", "Ali Darwish: (512)-581-1996"],
-  },
-  {
-    icon: Mail,
-    title: "Emails",
-    details: ["dalcala@procurewide.com", "adarwish@procurewide.com"],
-  },
+  // {
+  //   icon: Phone,
+  //   title: "Phone",
+  //   details: ["Diego Alcala: (562)-704-9157", "Ali Darwish: (512)-581-1996"],
+  // },
+  // {
+  //   icon: Mail,
+  //   title: "Emails",
+  //   details: ["dalcala@procurewide.com", "adarwish@procurewide.com"],
+  // },
 ];
 
 const Contact = () => {
