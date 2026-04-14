@@ -7,8 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MapPin, Phone, Mail, Send } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { notifySlack } from "../actions/slack";
-import { createAdminNotificationAction } from "@/lib/notifications/actions";
+import { submitContactForm } from "../actions/contact";
 
 const contactInfo = [
   {
@@ -36,26 +35,21 @@ const Contact = () => {
     email: "",
     message: "",
   });
+  // Honeypot: bots fill this, humans never see it
+  const [website, setWebsite] = useState("");
+  // Timing: reject submissions that arrive too fast
+  const [loadedAt] = useState(() => Date.now());
   const [isPending, startTransition] = useTransition();
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     startTransition(async () => {
       try {
-        await notifySlack(
-          "contact-outreach",
-          `
-          *Contact Form Submitted!*
-          Name: ${formData.firstName} ${formData.lastName}:
-          Email: ${formData.email}
-          message: ${formData.message}`,
-        );
-
-        await createAdminNotificationAction(
-          "contact",
-          "New Contact Message",
-          `${formData.firstName} ${formData.lastName} (${formData.email}) sent a message.`
-        );
+        await submitContactForm({
+          ...formData,
+          website,
+          loadedAt,
+        });
 
         toast({
           title: "Message sent!",
@@ -112,6 +106,18 @@ const Contact = () => {
                 </h2>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
+                  {/* Honeypot — hidden from real users, bots fill it in */}
+                  <div style={{ display: "none" }} aria-hidden="true">
+                    <Input
+                      id="website"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      value={website}
+                      onChange={(e) => setWebsite(e.target.value)}
+                    />
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label
