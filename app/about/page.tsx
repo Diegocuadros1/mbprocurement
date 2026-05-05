@@ -4,6 +4,7 @@ import { Footer } from "@/components/Footer";
 import { Handshake, Users, Lightbulb, Heart } from "lucide-react";
 import Image from "next/image";
 import VenderGrid from "@/components/VenderGrid";
+import { LogoMeaningSection } from "@/components/LogoMeaningSection";
 import Link from "next/link";
 
 const values = [
@@ -119,14 +120,14 @@ const About = () => {
             transition={{ duration: 0.6 }}
             className="max-w-4xl mx-auto text-center"
           >
-            <span className="inline-block px-4 py-2 rounded-full bg-accent/10 text-accent text-sm font-medium mb-6">
+            <span className="inline-block px-4 py-2 rounded-full bg-white/15 text-white text-sm font-medium mb-6">
               About Us
             </span>
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground mb-6">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6">
               Created by Scientists,{" "}
               <span className="text-accent">to Support Science</span>
             </h1>
-            <p className="text-lg md:text-xl text-muted-foreground leading-relaxed">
+            <p className="text-lg md:text-xl text-white/80 leading-relaxed">
               At ProcureWide, we optimize the procurement process. You save
               money. You do more science. Your investors are thrilled.
             </p>
@@ -214,6 +215,8 @@ const About = () => {
         </div>
       </section>
 
+      <LogoMeaningSection />
+
       {/* Challenges Section (replicates screenshot layout) */}
       <section className="relative py-16 lg:py-24 text-primary overflow-hidden">
         {/* soft accent glow */}
@@ -261,10 +264,10 @@ const About = () => {
 
                   {/* content above glow */}
                   <div className="relative z-10">
-                    <h3 className="text-base font-semibold text-primary-foreground">
+                    <h3 className="text-base font-semibold text-foreground">
                       {item.title}
                     </h3>
-                    <p className="mt-3 text-sm leading-relaxed text-primary-foreground/70">
+                    <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
                       {item.description}
                     </p>
                   </div>
@@ -469,7 +472,7 @@ const About = () => {
       </section> */}
 
       {/* Vendors Section */}
-      <section className="py-16 lg:py-24 bg-primary text-primary-foreground">
+      <section className="py-16 lg:py-24 bg-secondary">
         <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--primary-foreground)/0.08)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--primary-foreground)/0.08)_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_70%_60%_at_50%_20%,#000_65%,transparent_110%)]" />
 
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -481,7 +484,7 @@ const About = () => {
             className="text-center mb-12"
           >
             -
-            <h2 className="text-3xl md:text-4xl font-bold text-primary-foreground mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-secondary-foreground mb-4">
               200+ Vendors: Currently Adding 10 Vendors/Month!
             </h2>
             <p className="text-lg text-muted-foreground max-w-2xl mx-auto">

@@ -49,15 +49,12 @@ export default function NavbarClient({
           {/* Logo */}
           <Link href="/dashboard" className="flex items-center gap-2 group">
             <Image
-              src="/logo.svg"
+              src="/procurewide-logo.png"
               alt="ProcureWide"
-              width={28}
-              height={28}
-              className="group-hover:scale-105 transition-transform"
+              width={160}
+              height={40}
+              className="h-10 w-auto group-hover:scale-105 transition-transform"
             />
-            <span className="font-bold text-sm text-foreground hidden sm:block">
-              ProcureWide
-            </span>
           </Link>
 
           {/* User + Bell + Logout */}
@@ -116,17 +113,12 @@ export default function NavbarClient({
           {/* Logo */}
           <Link href="/" className="flex items-center gap-3 group">
             <Image
-              src="/logo.svg"
+              src="/procurewide-logo.png"
               alt="ProcureWide"
-              width={50}
-              height={50}
-              className="group-hover:scale-105 transition-transform"
-            />
-            <div className="hidden sm:block">
-              <span className="font-bold text-lg text-foreground">
-                ProcureWide
-              </span>
-            </div>
+              width={160}
+              height={40}
+              className="h-10 w-auto group-hover:scale-105 transition-transform"
+            /> ProcureWide
           </Link>
 
           {/* Desktop Navigation */}
@@ -150,9 +142,9 @@ export default function NavbarClient({
                 Login
               </Button>
             </Link>
-            <Link href="/questionnaire">
+            <Link href="https://prodigy-labs.com/platform" target="_blank">
               <Button variant="accent" className="cursor-pointer" size="sm">
-                Get Started
+                Prodigy Platform
               </Button>
             </Link>
           </div>
@@ -195,9 +187,9 @@ export default function NavbarClient({
                     Login
                   </Button>
                 </Link>
-                <Link href="/questionnaire" className="flex-1">
+                <Link href="https://prodigy-labs.com/platform" className="flex-1">
                   <Button variant="accent" className="w-full">
-                    Get Started
+                    Prodigy Platform
                   </Button>
                 </Link>
               </div>

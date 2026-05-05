@@ -502,12 +502,6 @@ export default function GetPricingPage() {
                 <ArrowRight className="ml-2 w-5 h-5" />
               </button>
 
-              <div className="rounded-xl border border-border bg-card px-5 py-4 text-left">
-                <div className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <ShieldCheck className="w-4 h-4 text-accent" />
-                  Confidential + founder-friendly
-                </div>
-              </div>
             </div>
           </motion.div>
         </div>

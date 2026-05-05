@@ -34,7 +34,7 @@ export const Hero = () => {
             transition={{ duration: 0.7, ease: "easeOut" }}
             className="text-center lg:text-left"
           >
-            <motion.div
+            {/* <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: 0.2, duration: 0.5 }}
@@ -42,12 +42,12 @@ export const Hero = () => {
             >
               <span className="animate-pulse">🚀</span>
               Created by a Scientist to Support Science
-            </motion.div>
+            </motion.div> */}
 
             <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight mb-6 text-balance">
-              Control, Savings <span className="text-accent">&</span>{" "}
+              Save <span className="text-accent">Time</span>{" "}
               <span className="relative inline-block">
-                Peace of Mind
+                Save <span className="text-accent">Money</span>
                 <svg
                   className="absolute -bottom-2 left-0 w-full"
                   viewBox="0 0 200 12"
@@ -66,8 +66,7 @@ export const Hero = () => {
             </h1>
 
             <p className="text-lg sm:text-xl text-muted-foreground mb-8 max-w-xl mx-auto lg:mx-0">
-              Your company will need to buy stuff. We make that easy.
-              Procurement made simple so you can focus on what matters.
+              <span className="text-accent font-bold">PRE-LAUNCH</span> of a solutions architecture for lifesciences purchasing and procurement support services
             </p>
 
             {/* Highlights */}
