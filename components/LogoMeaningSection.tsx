@@ -93,7 +93,7 @@ export const LogoMeaningSection = () => {
             viewport={{ once: true }}
             transition={{ duration: 0.5, delay: 0.25 }}
             className="hidden md:flex shrink-0 flex-col items-center gap-1.5 bg-yellow-50 border border-yellow-200 shadow-md rounded-sm p-3 w-30"
-            style={{ transform: "rotate(45deg)" }}
+            style={{ transform: "rotate(3deg)" }}
           >
             <Image
               src="/logo-drawing.png"
@@ -105,8 +105,8 @@ export const LogoMeaningSection = () => {
           </motion.div>
         </div>
 
-        {/* 3-column horizontal card row */}
-        <div className="flex flex-row gap-6">
+        {/* cards — stacked on mobile, 3-col on desktop */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
           {items.map((item, i) => (
             <motion.div
               key={item.label}
@@ -122,7 +122,7 @@ export const LogoMeaningSection = () => {
 
               {/* image */}
               <div
-                className="mb-5 flex items-center justify-center h-28 w-28"
+                className="mb-5 flex items-center justify-center h-20 w-20 md:h-28 md:w-28"
                 style={item.rotate ? { transform: "rotate(-60deg)" } : undefined}
               >
                 <Image
