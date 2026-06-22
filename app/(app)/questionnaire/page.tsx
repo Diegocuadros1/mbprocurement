@@ -11,7 +11,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { Footer } from "@/components/Footer";
-import { notifySlack } from "../actions/slack";
+import { notifySlack } from "../../actions/slack";
 import { createAdminNotificationAction } from "@/lib/notifications/actions";
 import { formatSlackMessage, useQuestionnaireValidation } from "@/lib/helpers";
 import { useToast } from "@/hooks/use-toast";

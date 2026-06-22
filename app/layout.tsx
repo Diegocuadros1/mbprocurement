@@ -1,22 +1,25 @@
 import type { Metadata } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Bricolage_Grotesque, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Navbar } from "@/components/Navbar";
 import { Toaster } from "@/components/ui/Toaster";
 import { Analytics } from "@vercel/analytics/next";
-import { createClient } from "@/lib/supabase/server";
-import { fetchAllCompanies } from "@/lib/companies";
-import Sidebar from "@/components/Sidebar";
-import { checkFirstLogin } from "@/lib/notifications";
 
-const geistSans = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const bricolage = Bricolage_Grotesque({
+  variable: "--font-bricolage",
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+});
+
+const jbMono = JetBrains_Mono({
+  variable: "--font-jbmono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
 });
 
 export const metadata: Metadata = {
@@ -27,59 +30,20 @@ export const metadata: Metadata = {
     description: "Made by Scientists, for Science",
     url: "https://procurewide.com",
     siteName: "ProcureWide",
-    images: [
-      {
-        url: "logo.png",
-        width: 600,
-        height: 450,
-        alt: "ProcureWide",
-      },
-    ],
+    images: [{ url: "logo.png", width: 600, height: 450, alt: "ProcureWide" }],
     type: "website",
   },
 };
 
-export default async function RootLayout({
+export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  const isLoggedIn = !!user;
-  let isAdmin = false;
-  let companies: { id: string; name: string; pending_orders: number }[] = [];
-
-  if (user) {
-    const { data: profile } = await supabase
-      .from("profiles")
-      .select("role, welcomed_at, username")
-      .eq("id", user.id)
-      .single();
-
-    isAdmin = profile?.role === "app_admin";
-
-    // First-ever login: send welcome notification (non-blocking)
-    if (!isAdmin && profile?.welcomed_at === null) {
-      await checkFirstLogin(user.id, profile?.username ?? null);
-    }
-
-    if (isAdmin) {
-      companies = await fetchAllCompanies().catch(() => []);
-    }
-  }
-
+}: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="en" style={{ colorScheme: "light" }}>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${jakarta.variable} ${bricolage.variable} ${jbMono.variable} antialiased`}
       >
-        <Navbar />
-        {isLoggedIn && <Sidebar isAdmin={isAdmin} companies={companies} />}
-        <div className={isLoggedIn ? "ml-60 pt-12" : ""}>{children}</div>
+        {children}
         <Toaster />
         <Analytics />
       </body>

@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
   const type = searchParams.get("type") as EmailOtpType | null;
 
   // Optional: where to go after confirm
-  const next = (searchParams.get("next") ?? "/dashboard").toString();
+  const next = (searchParams.get("next") ?? "/app").toString();
 
   if (!token_hash || !type) {
     redirect(`/auth/error?error=Missing token_hash or type`);
@@ -21,5 +21,5 @@ export async function GET(request: NextRequest) {
 
   if (error) redirect(`/auth/error?error=${encodeURIComponent(error.message)}`);
 
-  redirect(next.startsWith("/") ? next : "/dashboard");
+  redirect(next.startsWith("/") ? next : "/app");
 }

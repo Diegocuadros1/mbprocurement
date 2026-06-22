@@ -1,0 +1,62 @@
+// Shared types for the ProcureWide ordering portal (new data model).
+
+export type PwVendor = { key: string; name: string; logo: string | null };
+
+export type PwProduct = {
+  sku: string;
+  name: string;
+  vendor: string; // vendor key
+  catalog_no: string | null;
+  category: string | null;
+  unit: string | null;
+  price: number; // negotiated price
+  list: number; // catalog list price
+  lead: string | null;
+  badges: string[];
+  storage: string | null;
+};
+
+export type PwCartLine = { sku: string; qty: number };
+
+export type PwInventoryRow = {
+  id: string;
+  company_id: string;
+  sku: string;
+  on_hand: number;
+  reorder: number;
+  lot: string | null;
+  expiry: string | null;
+  location: string | null;
+};
+
+export type PwOrder = {
+  id: string;
+  company_id: string;
+  order_num: string;
+  status: string;
+  po: string | null;
+  ship: string | null;
+  notes: string | null;
+  tracking: string | null;
+  carrier: string | null;
+  urgency: string | null;
+  need_by: string | null;
+  arrival: string | null;
+  total: number;
+  saved: number;
+  created_by: string | null;
+  created_at: string;
+  pw_order_items?: PwOrderItem[];
+};
+
+export type PwOrderItem = {
+  id: string;
+  order_id: string;
+  sku: string;
+  name: string | null;
+  vendor: string | null;
+  qty: number;
+  unit_price: number;
+};
+
+export type PwVendorSpend = { company_id: string; vendor: string; qtd_spend: number };
