@@ -218,3 +218,24 @@ export async function removeInventoryAction(sku: string) {
   await supabase.from("pw_inventory").delete().eq("company_id", companyId).eq("sku", sku);
   revalidatePortal();
 }
+
+// ───────── Documents ─────────
+export async function addDocumentAction(input: { name: string; doc_type: string; file_ref?: string | null; description?: string | null }) {
+  const { supabase, companyId } = await requireCompany();
+  const name = input.name.trim();
+  if (!name) throw new Error("Document name is required.");
+  await supabase.from("pw_documents").insert({
+    company_id: companyId,
+    name,
+    doc_type: input.doc_type || "template",
+    file_ref: input.file_ref?.trim() || null,
+    description: input.description?.trim() || null,
+  });
+  revalidatePortal();
+}
+
+export async function removeDocumentAction(id: string) {
+  const { supabase, companyId } = await requireCompany();
+  await supabase.from("pw_documents").delete().eq("id", id).eq("company_id", companyId);
+  revalidatePortal();
+}

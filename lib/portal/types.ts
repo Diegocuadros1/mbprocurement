@@ -60,3 +60,13 @@ export type PwOrderItem = {
 };
 
 export type PwVendorSpend = { company_id: string; vendor: string; qtd_spend: number };
+
+export type PwDocumentRow = {
+  id: string;
+  company_id: string | null;
+  doc_type: string;
+  name: string;
+  description: string | null;
+  file_ref: string | null;
+  created_at: string;
+};

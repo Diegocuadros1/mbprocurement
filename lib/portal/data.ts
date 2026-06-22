@@ -1,6 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import type { PwVendor, PwProduct, PwCartLine, PwOrder, PwInventoryRow } from "./types";
+import type { PwVendor, PwProduct, PwCartLine, PwOrder, PwInventoryRow, PwDocumentRow } from "./types";
 
 export type PortalContext = {
   userId: string;
@@ -94,6 +94,17 @@ export async function fetchBookedSpend(companyId: string | null): Promise<Record
   const m: Record<string, number> = {};
   (data || []).forEach((r) => (m[r.vendor] = Number(r.qtd_spend)));
   return m;
+}
+
+export async function fetchDocuments(companyId: string | null): Promise<PwDocumentRow[]> {
+  if (!companyId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pw_documents")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+  return (data || []) as PwDocumentRow[];
 }
 
 export async function cartCount(companyId: string | null): Promise<number> {
