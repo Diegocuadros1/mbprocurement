@@ -147,6 +147,103 @@ function ProductCard({ p, vendor, onHand, qty, onQty, onAdd, recommended, onOpen
   );
 }
 
+type ViewMode = "cards" | "rows" | "classic";
+
+const pwDeleteBtnSm: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 5, padding: "5px 8px", borderRadius: 4,
+  background: "#FBE9E6", border: "1px solid #E7B6AE", color: "#A02A1E", cursor: "pointer",
+};
+
+// Cards / Horizontal / Classic switcher
+function ViewSwitch({ value, onChange }: { value: ViewMode; onChange: (v: ViewMode) => void }) {
+  const opts: [ViewMode, string, string][] = [["cards", "Cards", "grid"], ["rows", "Horizontal", "rows"], ["classic", "Classic", "table"]];
+  return (
+    <div style={{ display: "inline-flex", gap: 2, background: PW.white, border: `1px solid ${PW.line2}`, borderRadius: 6, padding: 2 }}>
+      {opts.map(([id, label, icon]) => (
+        <button key={id} onClick={() => onChange(id)} title={label}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 11px", borderRadius: 4, border: 0,
+            background: value === id ? "#EAF1FB" : "transparent", color: value === id ? PW.ink : PW.ink500,
+            fontFamily: PW.sans, fontSize: 12.5, fontWeight: value === id ? 700 : 500, cursor: "pointer",
+          }}>
+          <Icon name={icon} size={14} color={value === id ? SLDS_BLUE : PW.mute} />{label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+// Horizontal (wide list) row
+function ProductRow({ p, vendor, vendorName, qty, onQty, onAdd, displayCat, categorize, catOptions, onSaved, isPwAdmin, onDelete, onOpen }: {
+  p: PwProduct; vendor: PwVendor; vendorName: string; qty: number; onQty: (n: number) => void; onAdd: () => void;
+  displayCat: string; categorize: boolean; catOptions: string[]; onSaved: () => void; isPwAdmin: boolean; onDelete: () => void; onOpen: () => void;
+}) {
+  const savePct = Math.round((1 - p.price / p.list) * 100);
+  const hasSaving = savePct > 0;
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "2.3fr 120px 130px minmax(280px, auto)", gap: 14, alignItems: "center", padding: "12px 16px", borderBottom: `1px solid ${PW.line}`, background: PW.white }}>
+      <div style={{ minWidth: 0, display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <VendorMark vendor={vendor} height={14} withName={false} />
+        <div style={{ minWidth: 0 }}>
+          <div onClick={onOpen} title="View item details" style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 13.5, color: PW.ink, cursor: "pointer", lineHeight: 1.3 }}>{p.name}</div>
+          <div style={{ display: "flex", gap: 8, marginTop: 3, alignItems: "center", flexWrap: "wrap" }}>
+            <button onClick={onOpen} style={{ background: "transparent", border: 0, padding: 0, cursor: "pointer", fontFamily: PW.mono, fontSize: 11.5, color: SLDS_BLUE }}>{p.catalog_no}</button>
+            <span style={{ fontFamily: PW.sans, fontSize: 11.5, color: PW.ink500 }}>{p.unit}</span>
+            <span style={{ fontFamily: PW.sans, fontSize: 10, fontWeight: 600, color: PW.mute, textTransform: "uppercase", letterSpacing: "0.04em" }}>{vendorName} · {displayCat}</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ fontFamily: PW.sans, fontSize: 11.5, color: PW.mute, display: "flex", alignItems: "center", gap: 5 }}><Icon name="truck" size={13} color={PW.mute} /> {p.lead}</div>
+      <div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+          <span style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 16, color: PW.ink, fontVariantNumeric: "tabular-nums" }}>{money(p.price)}</span>
+          {hasSaving && <span style={{ fontFamily: PW.mono, fontSize: 10.5, color: PW.mute, textDecoration: "line-through" }}>{money(p.list)}</span>}
+        </div>
+        {hasSaving && <span style={{ fontFamily: PW.sans, fontSize: 10, fontWeight: 700, color: "#0A7048" }}>{savePct}% off list</span>}
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+        {categorize && <CategoryEditor sku={p.sku} value={displayCat} options={catOptions} onSaved={onSaved} />}
+        {isPwAdmin && <button onClick={onDelete} title="Delete catalog item" style={pwDeleteBtnSm}><Icon name="trash" size={13} color="#A02A1E" /></button>}
+        <QtyStepper value={qty} onChange={onQty} min={1} size="sm" />
+        <AppButton variant="primary" size="sm" icon="cart" onClick={onAdd}>Add</AppButton>
+      </div>
+    </div>
+  );
+}
+
+// Classic (dense table) view
+function ClassicTable({ items, vendors, getQty, onAdd, catOf, catOptions, onDelete, onOpen, categorize, isPwAdmin, onSaved }: {
+  items: PwProduct[]; vendors: Record<string, PwVendor>; getQty: (sku: string) => number; onAdd: (p: PwProduct) => void;
+  catOf: (p: PwProduct) => string; catOptions: string[]; onDelete: (p: PwProduct) => void; onOpen: (sku: string) => void;
+  categorize: boolean; isPwAdmin: boolean; onSaved: () => void;
+}) {
+  void getQty;
+  const cols = "78px 1.35fr 120px 180px 58px 84px 110px";
+  return (
+    <SectionCard>
+      <div style={{ display: "grid", gridTemplateColumns: cols, gap: 10, padding: "9px 14px", background: "#F4F6F9", borderBottom: `1px solid ${PW.line}`, fontFamily: PW.sans, fontSize: 10, fontWeight: 800, color: PW.mute, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <span>SKU</span><span>Item</span><span>Vendor</span><span>Category</span><span>Lead</span><span style={{ textAlign: "right" }}>Price</span><span style={{ textAlign: "right" }}>Add</span>
+      </div>
+      {items.map((p) => (
+        <div key={p.sku} style={{ display: "grid", gridTemplateColumns: cols, gap: 10, padding: "9px 14px", borderBottom: `1px solid ${PW.line}`, alignItems: "center", fontSize: 12 }}>
+          <span style={{ fontFamily: PW.mono, fontSize: 11, color: PW.ink500 }}>{p.sku}</span>
+          <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            <span onClick={() => onOpen(p.sku)} style={{ color: PW.ink, fontWeight: 600, cursor: "pointer" }}>{p.name}</span>
+          </span>
+          <span style={{ color: PW.ink500, fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{vendors[p.vendor]?.name || p.vendor}</span>
+          <span>{categorize ? <CategoryEditor sku={p.sku} value={catOf(p)} options={catOptions} onSaved={onSaved} /> : <span style={{ color: PW.mute, fontSize: 11.5 }}>{catOf(p)}</span>}</span>
+          <span style={{ color: PW.mute, fontSize: 11.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.lead}</span>
+          <span style={{ textAlign: "right", fontFamily: PW.mono, fontWeight: 700, color: PW.ink, fontVariantNumeric: "tabular-nums" }}>{money(p.price)}</span>
+          <span style={{ display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+            {isPwAdmin && <button onClick={() => onDelete(p)} title="Delete" style={{ ...pwDeleteBtnSm, padding: "4px 7px" }}><Icon name="trash" size={12} color="#A02A1E" /></button>}
+            <AppButton variant="primary" size="sm" icon="cart" onClick={() => onAdd(p)}>Add</AppButton>
+          </span>
+        </div>
+      ))}
+    </SectionCard>
+  );
+}
+
 export default function CatalogScreen({ products, vendors, onHandBySku, catOverrides, customItems, isPwAdmin }: {
   products: PwProduct[]; vendors: Record<string, PwVendor>; onHandBySku: Record<string, number>;
   catOverrides: PwCatOverride[]; customItems: PwProduct[]; isPwAdmin: boolean;
@@ -162,11 +259,24 @@ export default function CatalogScreen({ products, vendors, onHandBySku, catOverr
   const [categorize, setCategorize] = React.useState(false);
   const [showRequest, setShowRequest] = React.useState(false);
   const [detailSku, setDetailSku] = React.useState<string | null>(null);
+  const [view, setView] = React.useState<ViewMode>("cards");
 
   // Auto-open the request form when the sidebar deep-links /app/catalog?request=1
   React.useEffect(() => {
     if (searchParams.get("request")) setShowRequest(true);
   }, [searchParams]);
+
+  // Restore the saved view preference (client-only, avoids hydration mismatch).
+  React.useEffect(() => {
+    try {
+      const v = localStorage.getItem("pw_view_catalog");
+      if (v === "cards" || v === "rows" || v === "classic") setView(v);
+    } catch {}
+  }, []);
+  const changeView = (v: ViewMode) => {
+    setView(v);
+    try { localStorage.setItem("pw_view_catalog", v); } catch {}
+  };
 
   const overrideBySku = React.useMemo(() => {
     const m: Record<string, string> = {};
@@ -321,11 +431,13 @@ export default function CatalogScreen({ products, vendors, onHandBySku, catOverr
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "baseline", gap: 8, margin: "18px 2px 12px" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, margin: "18px 2px 12px" }}>
           <span style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 15, color: PW.ink }}>{items.length} item{items.length !== 1 ? "s" : ""}</span>
           {(q || cat !== "All") && (
             <button onClick={() => { setQ(""); setCat("All"); }} style={{ background: "transparent", border: 0, color: SLDS_BLUE, cursor: "pointer", fontFamily: PW.sans, fontSize: 12.5, fontWeight: 600 }}>Clear filters</button>
           )}
+          <span style={{ flex: 1 }} />
+          <ViewSwitch value={view} onChange={changeView} />
         </div>
 
         {items.length === 0 ? (
@@ -335,6 +447,18 @@ export default function CatalogScreen({ products, vendors, onHandBySku, catOverr
                 <AppButton variant="secondary" onClick={() => { setQ(""); setCat("All"); }}>Clear filters</AppButton>
                 <AppButton variant="primary" icon="plus" onClick={() => setShowRequest(true)}>Request a custom item</AppButton>
               </div>} />
+          </SectionCard>
+        ) : view === "classic" ? (
+          <ClassicTable items={items} vendors={vendors} getQty={getQty} onAdd={handleAdd} catOf={catOf} catOptions={baseCats}
+            onDelete={handleDelete} onOpen={setDetailSku} categorize={categorize} isPwAdmin={isPwAdmin} onSaved={() => router.refresh()} />
+        ) : view === "rows" ? (
+          <SectionCard>
+            {items.map((p) => (
+              <ProductRow key={p.sku} p={p} vendor={vendors[p.vendor] || { key: p.vendor, name: p.vendor, logo: null }}
+                vendorName={vendors[p.vendor]?.name || p.vendor} qty={getQty(p.sku)} onQty={(v) => setQty(p.sku, v)} onAdd={() => handleAdd(p)}
+                displayCat={catOf(p)} categorize={categorize} catOptions={baseCats} onSaved={() => router.refresh()}
+                isPwAdmin={isPwAdmin} onDelete={() => handleDelete(p)} onOpen={() => setDetailSku(p.sku)} />
+            ))}
           </SectionCard>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(330px, 1fr))", gap: 14 }}>
