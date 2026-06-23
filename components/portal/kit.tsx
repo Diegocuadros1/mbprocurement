@@ -30,6 +30,12 @@ const ICON_PATHS: Record<string, string> = {
   arrowR: "M5 12h14M13 6l6 6-6 6",
   building: "M3 21h18M5 21V7l7-4 7 4v14M9 9h.01M9 13h.01M9 17h.01M15 9h.01M15 13h.01M15 17h.01",
   info: "M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zM12 11v5M12 7.6h.01",
+  grid: "M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z",
+  rows: "M3 5h18M3 12h18M3 19h18",
+  table: "M3 4h18v16H3zM3 9h18M9 9v11M3 14h18",
+  lock: "M6 10V8a6 6 0 0 1 12 0v2M5 10h14v10H5zM12 14v3",
+  support: "M12 3a9 9 0 0 0-9 9v5a2 2 0 0 0 2 2h2v-7H5a7 7 0 0 1 14 0h-2v7h2a2 2 0 0 0 2-2v-5a9 9 0 0 0-9-9z",
+  mail: "M3 5h18v14H3zM3 6l9 7 9-7",
 };
 
 export function Icon({ name, size = 16, color = "currentColor", stroke = 2 }: {

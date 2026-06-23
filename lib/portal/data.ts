@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
-import type { PwVendor, PwProduct, PwCartLine, PwOrder, PwInventoryRow, PwDocumentRow } from "./types";
+import type { PwVendor, PwProduct, PwCartLine, PwOrder, PwInventoryRow, PwDocumentRow, PwCatOverride } from "./types";
 
 export type PortalContext = {
   userId: string;
   companyId: string | null;
+  isPwAdmin: boolean; // ProcureWide operator (separate from app_admin)
   account: { name: string; initials: string; plan: string; quarter: string };
 };
 
@@ -23,15 +24,17 @@ function initialsOf(name: string): string {
 export async function getPortalContext(): Promise<PortalContext> {
   const { user, profile } = await requireProfile("/auth");
   const companyId = (profile?.company_id as string | null) ?? null;
+  const supabase = await createClient();
   let name = "Your lab";
   if (companyId) {
-    const supabase = await createClient();
     const { data } = await supabase.from("companies").select("name").eq("id", companyId).single();
     if (data?.name) name = data.name;
   }
+  const { data: me } = await supabase.from("profiles").select("is_pw_admin").eq("id", user.id).maybeSingle();
   return {
     userId: user.id,
     companyId,
+    isPwAdmin: !!me?.is_pw_admin,
     account: { name, initials: initialsOf(name), plan: "Growth", quarter: quarterLabel() },
   };
 }
@@ -44,17 +47,49 @@ export async function fetchVendors(): Promise<Record<string, PwVendor>> {
   return map;
 }
 
+const normProduct = (p: Record<string, unknown>): PwProduct =>
+  ({ ...p, price: Number(p.price), list: Number(p.list), badges: (p.badges as string[]) || [] }) as PwProduct;
+
+/** Global, officialized catalog (the shared parameters) — for browsing. */
 export async function fetchCatalog(): Promise<PwProduct[]> {
   const supabase = await createClient();
-  const { data } = await supabase.from("pw_products").select("*").eq("active", true).order("category").order("name");
-  return (data || []).map((p) => ({ ...p, price: Number(p.price), list: Number(p.list), badges: p.badges || [] })) as PwProduct[];
+  const { data } = await supabase
+    .from("pw_products")
+    .select("*")
+    .eq("active", true)
+    .is("company_id", null)
+    .eq("pending", false)
+    .order("category")
+    .order("name");
+  return (data || []).map(normProduct);
 }
 
-export async function productMap(): Promise<Record<string, PwProduct>> {
-  const list = await fetchCatalog();
+/** A company's own custom (pending, non-catalog) item requests. */
+export async function fetchCustomItems(companyId: string | null): Promise<PwProduct[]> {
+  if (!companyId) return [];
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("pw_products")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("requested_at", { ascending: false });
+  return (data || []).map(normProduct);
+}
+
+/** Resolve ANY sku (global catalog OR the company's custom items) → product. */
+export async function productMap(companyId?: string | null): Promise<Record<string, PwProduct>> {
+  const [global, customs] = await Promise.all([fetchCatalog(), fetchCustomItems(companyId ?? null)]);
   const m: Record<string, PwProduct> = {};
-  list.forEach((p) => (m[p.sku] = p));
+  global.forEach((p) => (m[p.sku] = p));
+  customs.forEach((p) => (m[p.sku] = p));
   return m;
+}
+
+/** Per-member catalog category overrides (Categorize). */
+export async function fetchCatOverrides(): Promise<PwCatOverride[]> {
+  const supabase = await createClient();
+  const { data } = await supabase.from("pw_cat_overrides").select("sku, category");
+  return (data || []) as PwCatOverride[];
 }
 
 export async function fetchCart(companyId: string | null): Promise<PwCartLine[]> {

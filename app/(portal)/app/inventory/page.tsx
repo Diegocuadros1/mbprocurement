@@ -7,7 +7,7 @@ export default async function InventoryPage() {
     fetchInventory(ctx.companyId),
     fetchCatalog(),
     fetchVendors(),
-    productMap(),
+    productMap(ctx.companyId),
   ]);
   return (
     <InventoryScreen

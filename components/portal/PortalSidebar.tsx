@@ -27,6 +27,24 @@ const SIDE_NAV: { sec?: string; items: { href: string; label: string; icon: stri
   },
 ];
 
+function NewOrderItem({ icon, title, sub, onClick }: {
+  icon: string; title: string; sub: string; onClick: () => void;
+}) {
+  const [hover, setHover] = React.useState(false);
+  return (
+    <button onClick={onClick} onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}
+      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 11px",
+        background: hover ? "#F2F1ED" : PW.white, border: 0, borderBottom: `1px solid ${PW.line}`,
+        cursor: "pointer", textAlign: "left" }}>
+      <ObjIcon name={icon} size={26} color={hover ? SLDS_BLUE : "#5A6A8E"} />
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <span style={{ display: "block", fontFamily: PW.sans, fontSize: 13, fontWeight: 700, color: PW.ink }}>{title}</span>
+        <span style={{ display: "block", fontFamily: PW.sans, fontSize: 11.5, color: PW.mute }}>{sub}</span>
+      </span>
+    </button>
+  );
+}
+
 function NavRow({ href, label, icon, isActive, count, cart }: {
   href: string; label: string; icon: string; isActive: boolean; count: number; cart?: boolean;
 }) {
@@ -57,6 +75,7 @@ export default function PortalSidebar({ cartCount, lowCount, savedQtr, account }
   const pathname = usePathname();
   const router = useRouter();
   const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
+  const [newOpen, setNewOpen] = React.useState(false);
 
   return (
     <aside style={{ width: 224, minHeight: "100vh", background: "#FAFAF7", borderRight: `1px solid ${PW.line}`,
@@ -72,11 +91,35 @@ export default function PortalSidebar({ cartCount, lowCount, savedQtr, account }
         </span>
       </div>
 
-      <button onClick={() => router.push("/app/catalog")} style={{ margin: "12px 0 6px", padding: "9px 12px", background: SLDS_BLUE,
-        color: "#fff", border: 0, borderRadius: 3, display: "flex", alignItems: "center", gap: 8, fontFamily: PW.sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
-        <Icon name="plus" size={14} stroke={2.4} />
-        New order
-      </button>
+      <div style={{ position: "relative", margin: "12px 0 6px" }}>
+        <button onClick={() => setNewOpen((o) => !o)} style={{ width: "100%", padding: "9px 12px", background: SLDS_BLUE,
+          color: "#fff", border: 0, borderRadius: 3, display: "flex", alignItems: "center", gap: 8, fontFamily: PW.sans, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>
+          <Icon name="plus" size={14} stroke={2.4} />
+          New order
+          <span style={{ flex: 1 }} />
+          <span style={{ display: "inline-flex", transform: newOpen ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}>
+            <Icon name="chevron" size={14} stroke={2.4} />
+          </span>
+        </button>
+        {newOpen && (
+          <>
+            <div onClick={() => setNewOpen(false)} style={{ position: "fixed", inset: 0, zIndex: 40 }} />
+            <div style={{ position: "absolute", top: "100%", left: 0, right: 0, marginTop: 6, zIndex: 41,
+              background: PW.white, border: `1px solid ${PW.line2}`, borderRadius: 6,
+              boxShadow: "0 16px 40px -12px rgba(7,17,42,0.32)", overflow: "hidden" }}>
+              <div style={{ padding: "8px 11px", background: "#F4F6F9", borderBottom: `1px solid ${PW.line}`,
+                fontFamily: PW.sans, fontSize: 10, fontWeight: 700, color: PW.mute,
+                textTransform: "uppercase", letterSpacing: "0.06em" }}>Start an order</div>
+              <NewOrderItem icon="order" title="From catalog" sub="Browse & compare items"
+                onClick={() => { setNewOpen(false); router.push("/app/catalog"); }} />
+              <div style={{ marginBottom: -1 }}>
+                <NewOrderItem icon="plus" title="Custom item" sub="Request something new—we'll source it"
+                  onClick={() => { setNewOpen(false); router.push("/app/catalog?request=1"); }} />
+              </div>
+            </div>
+          </>
+        )}
+      </div>
 
       <nav style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 8, flex: 1 }}>
         {SIDE_NAV.map((grp, gi) => (

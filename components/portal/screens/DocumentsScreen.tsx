@@ -6,6 +6,7 @@ import { PW, SLDS_BLUE } from "@/lib/portal/pw";
 import { PageHeader, SectionCard, AppButton, EmptyState, Icon, Toast, fmtDate } from "@/components/portal/kit";
 import { addDocumentAction, removeDocumentAction } from "@/lib/portal/actions";
 import type { PwDocumentRow } from "@/lib/portal/types";
+import { DocViewer, type ViewerDoc, type DocKind } from "@/components/portal/DocViewer";
 
 const CATEGORIES = ["All", "Templates", "Guidelines", "Compliance", "Agreements", "Quotes"];
 const UPLOAD_CATEGORIES = ["Templates", "Guidelines", "Compliance", "Agreements", "Quotes"];
@@ -68,13 +69,22 @@ const field: React.CSSProperties = {
 };
 const labelStyle: React.CSSProperties = { fontFamily: PW.sans, fontSize: 11.5, fontWeight: 600, color: PW.ink500, marginBottom: 5, display: "block" };
 
-export default function DocumentsScreen({ companyDocs }: { companyDocs: PwDocumentRow[] }) {
+// ProcureWide-operator master templates (static content rendered by DocViewer —
+// no DB). Gated to isPwAdmin. Mirrors the prototype DocumentsPage layout.
+const MASTER_TEMPLATES: { id: string; kind: DocKind; title: string; sub: string }[] = [
+  { id: "tpl-contract", kind: "contract", title: "Lab Support Agreement", sub: "Blank Prodigy ↔ member agreement." },
+  { id: "tpl-nda", kind: "nda", title: "Mutual NDA", sub: "Blank confidentiality agreement." },
+  { id: "tpl-invoice", kind: "invoice", title: "Order Invoice", sub: "Blank invoice, ready to fill." },
+];
+
+export default function DocumentsScreen({ companyDocs, isPwAdmin }: { companyDocs: PwDocumentRow[]; isPwAdmin: boolean }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [q, setQ] = React.useState("");
   const [cat, setCat] = React.useState("All");
   const [showUpload, setShowUpload] = React.useState(false);
   const [removingId, setRemovingId] = React.useState<string | null>(null);
+  const [viewing, setViewing] = React.useState<ViewerDoc | null>(null);
 
   const [name, setName] = React.useState("");
   const [docType, setDocType] = React.useState("Templates");
@@ -136,6 +146,16 @@ export default function DocumentsScreen({ companyDocs }: { companyDocs: PwDocume
       </PageHeader>
 
       <div style={{ padding: "18px 28px 60px", maxWidth: 1200, margin: "0 auto" }}>
+        {/* ProcureWide operator notice */}
+        {isPwAdmin && (
+          <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 14, padding: "10px 14px", background: "#FFF6E8", border: "1px solid #E7C98A", borderRadius: 6 }}>
+            <Icon name="lock" size={15} color="#8A6308" />
+            <span style={{ fontFamily: PW.sans, fontSize: 12.5, color: "#6E4F12", fontWeight: 600 }}>
+              ProcureWide admin — master document templates are visible below. Members never see this section.
+            </span>
+          </div>
+        )}
+
         {/* Upload form */}
         {showUpload && (
           <SectionCard title="Add a document" icon="upload" padded style={{ marginBottom: 18 }}>
@@ -223,7 +243,33 @@ export default function DocumentsScreen({ companyDocs }: { companyDocs: PwDocume
             docs.map((d) => <DocRow key={d.id} doc={d} onView={onView} onRemove={onRemove} busy={removingId === d.id} />)
           )}
         </SectionCard>
+
+        {/* Master template quick-links — ProcureWide operators only */}
+        {isPwAdmin && (
+          <div style={{ marginTop: 20 }}>
+            <div style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 13, color: PW.ink, marginBottom: 10, display: "flex", alignItems: "center", gap: 7 }}>
+              <Icon name="lock" size={14} color="#8A6308" /> Master templates{" "}
+              <span style={{ fontFamily: PW.sans, fontSize: 11.5, fontWeight: 500, color: PW.mute }}>· ProcureWide admin only</span>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 12 }}>
+              {MASTER_TEMPLATES.map((t) => (
+                <SectionCard key={t.id} title={t.title} icon="doc" padded style={{ textAlign: "center" }}>
+                  <p style={{ margin: "0 0 12px", fontFamily: PW.sans, fontSize: 13, color: PW.ink500 }}>{t.sub}</p>
+                  <AppButton
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setViewing({ id: t.id, name: `${t.title} — Master Template`, kind: t.kind, blank: true })}
+                  >
+                    Open template
+                  </AppButton>
+                </SectionCard>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
+
+      <DocViewer doc={viewing} onClose={() => setViewing(null)} />
     </div>
   );
 }

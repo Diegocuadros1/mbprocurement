@@ -14,6 +14,19 @@ async function requireCompany() {
   return { supabase, userId: user.id, companyId };
 }
 
+// ProcureWide operator (pw_admin) — separate from app_admin. Server-enforced.
+async function requireSystemAdmin() {
+  const { user } = await requireProfile("/auth");
+  const supabase = await createClient();
+  const { data } = await supabase.from("profiles").select("is_pw_admin").eq("id", user.id).maybeSingle();
+  if (!data?.is_pw_admin) throw new Error("ProcureWide operator access required.");
+  return { supabase, userId: user.id };
+}
+
+function newReqSku() {
+  return "REQ-" + crypto.randomUUID().replace(/-/g, "").slice(0, 8).toUpperCase();
+}
+
 function revalidatePortal() {
   revalidatePath("/app", "layout");
 }
@@ -58,10 +71,14 @@ export async function clearCartAction() {
   revalidatePortal();
 }
 
-/** Bulk add SKUs/quantities (e.g. CSV import). rows: {sku?|catalog?, qty}. */
-export async function importCartRowsAction(rows: { sku?: string; catalog?: string; qty: number | string }[]) {
+/**
+ * Bulk add (e.g. CSV import). rows: {sku?, catalog?, name?, link?, price?, qty}.
+ * Matched rows go to cart against the catalog. Unmatched rows that carry enough
+ * info (a name/description or a reference) become PENDING custom items.
+ */
+export async function importCartRowsAction(rows: { sku?: string; catalog?: string; name?: string; link?: string; price?: string | number; unit?: string; detail?: string; qty: number | string }[]) {
   const { supabase, userId, companyId } = await requireCompany();
-  const { data: products } = await supabase.from("pw_products").select("sku, catalog_no");
+  const { data: products } = await supabase.from("pw_products").select("sku, catalog_no").is("company_id", null).eq("pending", false);
   const bySku: Record<string, { sku: string }> = {};
   const byCat: Record<string, { sku: string }> = {};
   (products || []).forEach((p) => {
@@ -69,6 +86,7 @@ export async function importCartRowsAction(rows: { sku?: string; catalog?: strin
     if (p.catalog_no) byCat[p.catalog_no.toLowerCase()] = p;
   });
   let added = 0,
+    custom = 0,
     skipped = 0;
   for (const r of rows) {
     const q = parseInt(String(r.qty), 10) || 0;
@@ -76,21 +94,57 @@ export async function importCartRowsAction(rows: { sku?: string; catalog?: strin
       skipped++;
       continue;
     }
-    let sku: string | undefined = r.sku && bySku[r.sku.trim()] ? r.sku.trim() : undefined;
-    if (!sku && r.catalog) sku = byCat[String(r.catalog).trim().toLowerCase()]?.sku;
-    if (!sku && r.sku) sku = byCat[String(r.sku).trim().toLowerCase()]?.sku;
-    if (!sku) {
+    const skuRef = (r.sku || "").trim();
+    const catRef = (r.catalog || "").trim();
+    let sku: string | undefined = skuRef && bySku[skuRef] ? skuRef : undefined;
+    if (!sku && catRef) sku = byCat[catRef.toLowerCase()]?.sku;
+    if (!sku && skuRef) sku = byCat[skuRef.toLowerCase()]?.sku;
+    if (sku) {
+      const { data: existing } = await supabase.from("pw_cart").select("qty").eq("company_id", companyId).eq("sku", sku).maybeSingle();
+      await supabase
+        .from("pw_cart")
+        .upsert({ company_id: companyId, sku, qty: (existing?.qty || 0) + q, added_by: userId, updated_at: new Date().toISOString() }, { onConflict: "company_id,sku" });
+      added++;
+      continue;
+    }
+    // No catalog match — build a pending custom item if we have anything to go on.
+    const name = (r.name || "").trim();
+    const ref = catRef || skuRef;
+    if (!name && !ref) {
       skipped++;
       continue;
     }
-    const { data: existing } = await supabase.from("pw_cart").select("qty").eq("company_id", companyId).eq("sku", sku).maybeSingle();
-    await supabase
-      .from("pw_cart")
-      .upsert({ company_id: companyId, sku, qty: (existing?.qty || 0) + q, added_by: userId, updated_at: new Date().toISOString() }, { onConflict: "company_id,sku" });
-    added++;
+    const price = parsePrice(r.price);
+    const newSku = newReqSku();
+    const { error } = await supabase.from("pw_products").insert({
+      sku: newSku,
+      name: name || "Item " + ref,
+      vendor: "tbd",
+      catalog_no: ref || null,
+      category: "Custom request",
+      unit: (r.unit || "").trim() || "Each",
+      price,
+      list: price,
+      estimated: price > 0,
+      lead: "After sourcing",
+      badges: [],
+      active: true,
+      company_id: companyId,
+      pending: true,
+      link: (r.link || "").trim() || null,
+      detail: (r.detail || "").trim() || null,
+      requested_by: userId,
+      requested_at: new Date().toISOString(),
+    });
+    if (error) {
+      skipped++;
+      continue;
+    }
+    await supabase.from("pw_cart").upsert({ company_id: companyId, sku: newSku, qty: q, added_by: userId, updated_at: new Date().toISOString() }, { onConflict: "company_id,sku" });
+    custom++;
   }
   revalidatePortal();
-  return { added, skipped };
+  return { added, custom, skipped };
 }
 
 // ───────── Place order ─────────
@@ -237,5 +291,116 @@ export async function addDocumentAction(input: { name: string; doc_type: string;
 export async function removeDocumentAction(id: string) {
   const { supabase, companyId } = await requireCompany();
   await supabase.from("pw_documents").delete().eq("id", id).eq("company_id", companyId);
+  revalidatePortal();
+}
+
+// ───────── Custom (non-catalog) item requests ─────────
+type CustomItemInput = {
+  name?: string; catalog?: string; link?: string; unit?: string;
+  listPrice?: string | number; detail?: string; qty?: number | string;
+};
+
+function parsePrice(v: unknown): number {
+  if (v == null || v === "") return 0;
+  const n = parseFloat(String(v).replace(/[$,]/g, ""));
+  return isNaN(n) ? 0 : n;
+}
+
+/** Member requests a non-catalog item → pending company product + cart line. */
+export async function addCustomItemAction(item: CustomItemInput) {
+  const { supabase, userId, companyId } = await requireCompany();
+  const sku = newReqSku();
+  const price = parsePrice(item.listPrice);
+  const { error } = await supabase.from("pw_products").insert({
+    sku,
+    name: (item.name || "").trim() || "Custom item",
+    vendor: "tbd",
+    catalog_no: (item.catalog || "").trim() || null,
+    category: "Custom request",
+    unit: (item.unit || "").trim() || "Each",
+    price,
+    list: price,
+    estimated: price > 0,
+    lead: "After sourcing",
+    badges: [],
+    storage: null,
+    active: true,
+    company_id: companyId,
+    pending: true,
+    link: (item.link || "").trim() || null,
+    detail: (item.detail || "").trim() || null,
+    requested_by: userId,
+    requested_at: new Date().toISOString(),
+  });
+  if (error) throw new Error(error.message);
+  const qty = Math.max(1, parseInt(String(item.qty), 10) || 1);
+  await supabase.from("pw_cart").upsert(
+    { company_id: companyId, sku, qty, added_by: userId, updated_at: new Date().toISOString() },
+    { onConflict: "company_id,sku" }
+  );
+  revalidatePortal();
+  return { sku };
+}
+
+export async function updateCustomItemAction(sku: string, patch: { name?: string; catalog?: string; unit?: string; listPrice?: string | number; detail?: string; link?: string }) {
+  const { supabase, companyId } = await requireCompany();
+  const upd: Record<string, unknown> = {};
+  if (patch.name !== undefined) upd.name = patch.name.trim() || "Custom item";
+  if (patch.catalog !== undefined) upd.catalog_no = patch.catalog.trim() || null;
+  if (patch.unit !== undefined) upd.unit = patch.unit.trim() || "Each";
+  if (patch.detail !== undefined) upd.detail = patch.detail.trim() || null;
+  if (patch.link !== undefined) upd.link = patch.link.trim() || null;
+  if (patch.listPrice !== undefined) {
+    const price = parsePrice(patch.listPrice);
+    upd.price = price;
+    upd.list = price;
+    upd.estimated = price > 0;
+  }
+  await supabase.from("pw_products").update(upd).eq("sku", sku).eq("company_id", companyId).eq("pending", true);
+  revalidatePortal();
+}
+
+export async function removeCustomItemAction(sku: string) {
+  const { supabase, companyId } = await requireCompany();
+  await supabase.from("pw_cart").delete().eq("company_id", companyId).eq("sku", sku);
+  await supabase.from("pw_products").delete().eq("sku", sku).eq("company_id", companyId).eq("pending", true);
+  revalidatePortal();
+}
+
+/** ProcureWide operator officializes a custom request into the global catalog. */
+export async function officializeCustomItemAction(sku: string, patch: { price?: number | string; vendor?: string; lead?: string }) {
+  const { supabase } = await requireSystemAdmin();
+  const upd: Record<string, unknown> = { company_id: null, pending: false, estimated: false };
+  if (patch.price !== undefined) {
+    const price = parsePrice(patch.price);
+    upd.price = price;
+    upd.list = price;
+  }
+  if (patch.vendor) upd.vendor = patch.vendor;
+  if (patch.lead) upd.lead = patch.lead;
+  await supabase.from("pw_products").update(upd).eq("sku", sku);
+  revalidatePortal();
+}
+
+/** ProcureWide operator soft-deletes a catalog item (hidden from catalog). */
+export async function softDeleteProductAction(sku: string) {
+  const { supabase } = await requireSystemAdmin();
+  await supabase.from("pw_products").update({ active: false }).eq("sku", sku);
+  revalidatePortal();
+}
+
+// ───────── Categorize (per-member catalog category overrides) ─────────
+export async function setCategoryOverrideAction(sku: string, category: string) {
+  const { supabase, userId } = await requireCompany();
+  await supabase.from("pw_cat_overrides").upsert(
+    { user_id: userId, sku, category, updated_at: new Date().toISOString() },
+    { onConflict: "user_id,sku" }
+  );
+  revalidatePortal();
+}
+
+export async function clearCategoryOverrideAction(sku: string) {
+  const { supabase, userId } = await requireCompany();
+  await supabase.from("pw_cat_overrides").delete().eq("user_id", userId).eq("sku", sku);
   revalidatePortal();
 }

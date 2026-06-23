@@ -41,11 +41,12 @@ export function lineVolumeOff(qty: number): number {
 }
 
 export function linePricing(product: PwProduct | undefined, qty: number) {
-  if (!product) return { gross: 0, off: 0, net: 0, offPct: 0 };
-  const gross = product.price * qty;
-  const offPct = lineVolumeOff(qty);
+  if (!product) return { gross: 0, off: 0, net: 0, offPct: 0, pending: false, estimated: false };
+  const gross = (product.price || 0) * qty;
+  // pending (non-catalog) items don't earn volume discounts until sourced
+  const offPct = product.pending ? 0 : lineVolumeOff(qty);
   const off = gross * offPct;
-  return { gross, off, net: gross - off, offPct };
+  return { gross, off, net: gross - off, offPct, pending: !!product.pending, estimated: !!product.estimated };
 }
 
 export type SpendStatus = {
@@ -85,7 +86,7 @@ export function spendStatus(vendorKey: string, booked: number, extra = 0): Spend
 
 export type CartVendorGroup = {
   vendor: string;
-  lines: (PwCartLine & { p: PwProduct; gross: number; off: number; net: number; offPct: number })[];
+  lines: (PwCartLine & { p: PwProduct; gross: number; off: number; net: number; offPct: number; pending: boolean; estimated: boolean })[];
   net: number;
   spend: SpendStatus;
   spendBase: SpendStatus;
@@ -100,6 +101,8 @@ export type CartSummary = {
   afterVolume: number;
   total: number;
   itemCount: number;
+  pendingCount: number; // # of pending (non-catalog) lines
+  hasUnpriced: boolean; // any pending line with no estimated price
 };
 
 // Cart grouped by vendor with discount summary.
@@ -111,7 +114,9 @@ export function cartSummary(
   const groups: Record<string, CartVendorGroup> = {};
   let itemsGross = 0,
     volumeOff = 0,
-    itemCount = 0;
+    itemCount = 0,
+    pendingCount = 0,
+    hasUnpriced = false;
   cart.forEach((line) => {
     const p = products[line.sku];
     if (!p) return;
@@ -119,6 +124,10 @@ export function cartSummary(
     itemsGross += lp.gross;
     volumeOff += lp.off;
     itemCount += line.qty;
+    if (p.pending) {
+      pendingCount += 1;
+      if (!p.price) hasUnpriced = true;
+    }
     if (!groups[p.vendor])
       groups[p.vendor] = {
         vendor: p.vendor,
@@ -141,7 +150,7 @@ export function cartSummary(
   });
   const afterVolume = itemsGross - volumeOff;
   const total = Math.max(0, afterVolume - spendGuarantee);
-  return { vendorGroups, itemsGross, volumeOff, spendGuarantee, afterVolume, total, itemCount };
+  return { vendorGroups, itemsGross, volumeOff, spendGuarantee, afterVolume, total, itemCount, pendingCount, hasUnpriced };
 }
 
 export function consolidationOffer(summary: CartSummary) {

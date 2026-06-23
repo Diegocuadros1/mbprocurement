@@ -6,7 +6,7 @@ export default async function OrdersPage() {
   const [orders, vendors, products] = await Promise.all([
     fetchOrders(ctx.companyId),
     fetchVendors(),
-    productMap(),
+    productMap(ctx.companyId),
   ]);
   return (
     <OrdersScreen

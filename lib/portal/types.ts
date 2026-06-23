@@ -14,7 +14,15 @@ export type PwProduct = {
   lead: string | null;
   badges: string[];
   storage: string | null;
+  // v19 — custom (non-catalog) item requests
+  company_id?: string | null; // null = global catalog; set = company custom request
+  pending?: boolean; // awaiting ProcureWide officialization
+  estimated?: boolean; // price is a member estimate, not yet sourced
+  link?: string | null;
+  detail?: string | null;
 };
+
+export type PwCatOverride = { sku: string; category: string };
 
 export type PwCartLine = { sku: string; qty: number };
 

@@ -17,7 +17,7 @@ export default async function HomePage() {
     fetchBookedSpend(ctx.companyId),
     fetchCart(ctx.companyId),
     fetchVendors(),
-    productMap(),
+    productMap(ctx.companyId),
   ]);
 
   return (

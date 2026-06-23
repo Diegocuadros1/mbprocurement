@@ -11,6 +11,7 @@ import { money, money0 } from "@/lib/portal/pricing";
 import { toCSV, downloadText } from "@/lib/portal/csv";
 import { reorderToCartAction, importCartRowsAction } from "@/lib/portal/actions";
 import type { PwOrder, PwOrderItem, PwVendor, PwProduct } from "@/lib/portal/types";
+import { PendingBadge } from "@/components/portal/CustomItems";
 
 type Account = { name: string; initials: string; plan: string; quarter: string };
 type Tone = "neutral" | "success" | "warning" | "danger" | "info";
@@ -138,9 +139,10 @@ function OrderRow({
                   fontFamily: PW.sans, fontSize: 13,
                 }}>
                   <span style={{ fontFamily: PW.mono, fontSize: 12, color: PW.mute }}>{l.qty}×</span>
-                  <div style={{ minWidth: 0 }}>
+                  <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ color: PW.ink, fontWeight: 500 }}>{l.name || (p ? p.name : l.sku)}</span>
-                    {p && p.catalog_no && <span style={{ fontFamily: PW.mono, fontSize: 11, color: PW.mute, marginLeft: 8 }}>{p.catalog_no}</span>}
+                    {p && p.catalog_no && <span style={{ fontFamily: PW.mono, fontSize: 11, color: PW.mute }}>{p.catalog_no}</span>}
+                    {p && p.pending && <PendingBadge />}
                   </div>
                   <span style={{ fontFamily: PW.sans, fontSize: 12, color: PW.ink500 }}>{vendors[vendorKey]?.name || vendorKey || "—"}</span>
                   <span style={{ fontFamily: PW.mono, fontSize: 12.5, color: PW.ink, textAlign: "right" }}>{money(lineTotal(l))}</span>

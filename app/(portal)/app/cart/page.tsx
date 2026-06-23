@@ -4,7 +4,7 @@ import CartScreen from "@/components/portal/screens/CartScreen";
 export default async function CartPage() {
   const ctx = await getPortalContext();
   const [products, vendors, cart, bookedSpend] = await Promise.all([
-    productMap(),
+    productMap(ctx.companyId),
     fetchVendors(),
     fetchCart(ctx.companyId),
     fetchBookedSpend(ctx.companyId),

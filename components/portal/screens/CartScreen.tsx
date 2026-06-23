@@ -14,9 +14,10 @@ import {
 import { toCSV, downloadText } from "@/lib/portal/csv";
 import {
   setCartQtyAction, removeFromCartAction, clearCartAction,
-  importCartRowsAction, placeOrderAction,
+  importCartRowsAction, placeOrderAction, removeCustomItemAction,
 } from "@/lib/portal/actions";
 import type { PwProduct, PwVendor, PwCartLine } from "@/lib/portal/types";
+import { PendingBadge, ItemDetailDrawer, AMBER } from "@/components/portal/CustomItems";
 
 type ProductMapObj = Record<string, PwProduct>;
 type VendorMapObj = Record<string, PwVendor>;
@@ -24,23 +25,28 @@ type CartLineFull = CartVendorGroup["lines"][number];
 type OrderMeta = { urgency: string; needBy: string; priority: string; priorityNote: string };
 
 // ───────── Cart line ────────────────────────────────────────────────
-function CartLine({ line, onChange, onRemove }: {
-  line: CartLineFull; onChange: (sku: string, qty: number) => void; onRemove: (sku: string) => void;
+function CartLine({ line, onChange, onRemove, onOpen }: {
+  line: CartLineFull; onChange: (sku: string, qty: number) => void; onRemove: (sku: string) => void; onOpen: () => void;
 }) {
   const p = line.p;
+  const isPending = !!line.pending;
+  const unpriced = isPending && !p.price;
   return (
     <div style={{
       display: "grid", gridTemplateColumns: "1fr 132px 110px 36px", gap: 12,
       alignItems: "center", padding: "11px 14px", borderBottom: `1px solid ${PW.line}`,
     }}>
       <div style={{ minWidth: 0 }}>
-        <div style={{ fontFamily: PW.sans, fontWeight: 600, fontSize: 13.5, color: PW.ink, letterSpacing: "-0.005em" }}>{p.name}</div>
+        <div onClick={onOpen} title="View item details" style={{ fontFamily: PW.sans, fontWeight: 600, fontSize: 13.5, color: PW.ink, letterSpacing: "-0.005em", cursor: "pointer", display: "inline-block" }}>{p.name}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 3, flexWrap: "wrap" }}>
-          <span style={{ fontFamily: PW.mono, fontSize: 11.5, color: SLDS_BLUE }}>{p.catalog_no}</span>
-          <span style={{ color: PW.mute, fontSize: 11 }}>·</span>
+          {p.catalog_no && <span style={{ fontFamily: PW.mono, fontSize: 11.5, color: SLDS_BLUE }}>{p.catalog_no}</span>}
+          {p.catalog_no && <span style={{ color: PW.mute, fontSize: 11 }}>·</span>}
           <span style={{ fontFamily: PW.sans, fontSize: 11.5, color: PW.mute }}>{p.unit}</span>
           <span style={{ color: PW.mute, fontSize: 11 }}>·</span>
-          <span style={{ fontFamily: PW.mono, fontSize: 11.5, color: PW.ink500 }}>{money(p.price)} ea</span>
+          {unpriced
+            ? <span style={{ fontFamily: PW.sans, fontSize: 11.5, color: PW.mute }}>Price TBD</span>
+            : <span style={{ fontFamily: PW.mono, fontSize: 11.5, color: PW.ink500 }}>{money(p.price)} ea{isPending ? " est." : ""}</span>}
+          {isPending && <PendingBadge />}
           {line.offPct > 0 && (
             <span style={{
               padding: "0 6px", borderRadius: 2, background: "#E6F5EC", color: "#0A7048",
@@ -53,7 +59,9 @@ function CartLine({ line, onChange, onRemove }: {
         <QtyStepper value={line.qty} onChange={(v) => (v <= 0 ? onRemove(line.sku) : onChange(line.sku, v))} min={0} size="sm" />
       </div>
       <div style={{ textAlign: "right" }}>
-        <div style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 14, color: PW.ink, fontVariantNumeric: "tabular-nums" }}>{money(line.net)}</div>
+        {unpriced
+          ? <div style={{ fontFamily: PW.sans, fontWeight: 600, fontSize: 12.5, color: PW.mute }}>TBD</div>
+          : <div style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 14, color: PW.ink, fontVariantNumeric: "tabular-nums" }}>{money(line.net)}{isPending ? <span style={{ fontSize: 10, fontWeight: 600, color: PW.mute }}> est.</span> : null}</div>}
         {line.off > 0 && <div style={{ fontFamily: PW.mono, fontSize: 11, color: PW.mute, textDecoration: "line-through" }}>{money(line.gross)}</div>}
       </div>
       <button onClick={() => onRemove(line.sku)} title="Remove" style={{
@@ -65,21 +73,31 @@ function CartLine({ line, onChange, onRemove }: {
 }
 
 // ───────── Vendor group ─────────────────────────────────────────────
-function VendorGroup({ g, vendors, onChange, onRemove }: {
+function VendorGroup({ g, vendors, onChange, onRemove, onOpen }: {
   g: CartVendorGroup; vendors: VendorMapObj;
-  onChange: (sku: string, qty: number) => void; onRemove: (sku: string) => void;
+  onChange: (sku: string, qty: number) => void; onRemove: (sku: string) => void; onOpen: (sku: string) => void;
 }) {
   const st = g.spend;
+  const isCustom = g.vendor === "tbd";
   const vend = vendors[g.vendor] || { key: g.vendor, name: g.vendor, logo: null };
   const nextPct = st.next ? Math.min(100, (st.total / st.next.at) * 100) : 100;
   return (
     <SectionCard
-      title={<span>{vend.name}</span>}
-      icon="building"
-      action={<span style={{ fontFamily: PW.sans, fontSize: 12, color: PW.ink500, fontWeight: 600 }}>{money(g.net)}</span>}
+      title={<span>{isCustom ? "Custom requests" : vend.name}</span>}
+      icon={isCustom ? "bolt" : "building"}
+      action={<span style={{ fontFamily: PW.sans, fontSize: 12, color: PW.ink500, fontWeight: 600 }}>{isCustom ? (g.net > 0 ? money(g.net) + " est." : "Priced after sourcing") : money(g.net)}</span>}
       style={{ marginBottom: 14 }}
     >
-      {g.lines.map((l) => <CartLine key={l.sku} line={l} onChange={onChange} onRemove={onRemove} />)}
+      {g.lines.map((l) => <CartLine key={l.sku} line={l} onChange={onChange} onRemove={onRemove} onOpen={() => onOpen(l.sku)} />)}
+
+      {isCustom && (
+        <div style={{ padding: "11px 14px", background: AMBER.bg, borderTop: `1px solid ${AMBER.line}`, display: "flex", gap: 10, alignItems: "flex-start" }}>
+          <span style={{ flexShrink: 0, marginTop: 1 }}><Icon name="info" size={14} color={AMBER.dot} /></span>
+          <span style={{ fontFamily: PW.sans, fontSize: 12, color: "#6E5510", lineHeight: 1.5 }}>
+            These items aren&apos;t in your catalog yet. A ProcureWide admin verifies and sources each one before it&apos;s officialized — we&apos;ll confirm pricing and availability, typically within 24 hours, before anything ships.
+          </span>
+        </div>
+      )}
 
       {/* Spend-tier guarantee strip */}
       {st.tiers.length > 0 && (
@@ -366,9 +384,11 @@ function CheckoutForm({ summary, cart, products, vendors, meta, onBack, onPlaced
                 padding: "8px 14px", background: "#FAFBF7", borderBottom: `1px solid ${PW.line}`,
                 display: "flex", alignItems: "center", gap: 8,
               }}>
-                <VendorMark vendor={vendors[g.vendor] || { key: g.vendor, name: g.vendor, logo: null }} height={13} />
+                {g.vendor === "tbd"
+                  ? <span style={{ display: "inline-flex", alignItems: "center", gap: 6, fontFamily: PW.sans, fontSize: 12, fontWeight: 600, color: PW.ink500 }}><Icon name="bolt" size={13} color="#E0A60A" /> Custom requests</span>
+                  : <VendorMark vendor={vendors[g.vendor] || { key: g.vendor, name: g.vendor, logo: null }} height={13} />}
                 <span style={{ flex: 1 }} />
-                <span style={{ fontFamily: PW.mono, fontSize: 12, color: PW.ink500 }}>{money(g.net)}</span>
+                <span style={{ fontFamily: PW.mono, fontSize: 12, color: PW.ink500 }}>{g.vendor === "tbd" && g.net === 0 ? "TBD" : money(g.net)}</span>
               </div>
               {g.lines.map((l) => (
                 <div key={l.sku} style={{
@@ -403,19 +423,30 @@ export default function CartScreen({ products, vendors, cart, bookedSpend }: {
   const [meta, setMetaState] = React.useState<OrderMeta>({ urgency: "Medium", needBy: "", priority: "", priorityNote: "" });
   const [pending, startTransition] = React.useTransition();
   const [placing, setPlacing] = React.useState(false);
+  const [detailSku, setDetailSku] = React.useState<string | null>(null);
 
   const setMeta = (patch: Partial<OrderMeta>) => setMetaState((m) => ({ ...m, ...patch }));
   const summary = React.useMemo(() => cartSummary(cart, products, bookedSpend), [cart, products, bookedSpend]);
 
   const setQty = (sku: string, qty: number) => startTransition(async () => { await setCartQtyAction(sku, qty); });
-  const remove = (sku: string) => startTransition(async () => { await removeFromCartAction(sku); });
+  // Pending custom items live in pw_products — removing them deletes the request too.
+  const remove = (sku: string) => startTransition(async () => {
+    if (products[sku]?.pending) await removeCustomItemAction(sku);
+    else await removeFromCartAction(sku);
+  });
   const clear = () => startTransition(async () => { await clearCartAction(); Toast.show("Cart cleared"); });
 
   const handleCsv = (rows: Record<string, string>[]) => {
     startTransition(async () => {
-      const res = await importCartRowsAction(rows.map((r) => ({ sku: r.sku, catalog: r["catalog #"] || r.catalog, qty: r.qty })));
-      if (res.added) Toast.show(`Imported ${res.added} line${res.added > 1 ? "s" : ""}${res.skipped ? ` · ${res.skipped} skipped` : ""}`);
-      else Toast.show("No matching catalog items found", { tone: "danger" });
+      const res = await importCartRowsAction(rows.map((r) => ({
+        sku: r.sku, catalog: r["catalog #"] || r.catalog, name: r.name, link: r.link,
+        price: r["list price"] || r.price, qty: r.qty,
+      })));
+      const parts: string[] = [];
+      if (res.added) parts.push(`${res.added} catalog line${res.added > 1 ? "s" : ""}`);
+      if (res.custom) parts.push(`${res.custom} custom (pending review)`);
+      if (parts.length) Toast.show(`Imported ${parts.join(" · ")}${res.skipped ? ` · ${res.skipped} skipped` : ""}`);
+      else Toast.show("Nothing usable in that CSV — add an item name or catalog #", { tone: "danger" });
     });
   };
 
@@ -468,9 +499,10 @@ export default function CartScreen({ products, vendors, cart, bookedSpend }: {
         {cart.length === 0 ? (
           <SectionCard>
             <EmptyState icon="cart" title="Your cart is empty"
-              sub="Browse the catalog and add items, or bulk-upload a cart from a CSV file."
-              action={<div style={{ display: "flex", gap: 8 }}>
+              sub="Browse the catalog and add items, request a custom item we'll source for you, or bulk-upload a cart from a CSV file."
+              action={<div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
                 <AppButton variant="primary" icon="order" onClick={() => router.push("/app/catalog")}>Browse catalog</AppButton>
+                <AppButton variant="secondary" icon="plus" onClick={() => router.push("/app/catalog?request=1")}>Request custom item</AppButton>
                 <CsvUpload label="Upload cart CSV" onRows={handleCsv} />
               </div>} />
           </SectionCard>
@@ -486,7 +518,22 @@ export default function CartScreen({ products, vendors, cart, bookedSpend }: {
                   fontFamily: PW.sans, fontSize: 12.5, fontWeight: 600,
                 }}>Clear cart</button>
               </div>
-              {summary.vendorGroups.map((g) => <VendorGroup key={g.vendor} g={g} vendors={vendors} onChange={setQty} onRemove={remove} />)}
+              {summary.pendingCount > 0 && (
+                <div style={{ marginBottom: 12, borderRadius: 6, overflow: "hidden", border: `1px solid ${AMBER.line}`, background: AMBER.bg }}>
+                  <div style={{ padding: "12px 14px", display: "flex", gap: 11, alignItems: "flex-start" }}>
+                    <span style={{ width: 26, height: 26, borderRadius: 6, background: AMBER.dot, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                      <Icon name="clock" size={15} color="#fff" />
+                    </span>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontFamily: PW.sans, fontSize: 13, fontWeight: 700, color: "#5E4708" }}>{summary.pendingCount} custom item{summary.pendingCount !== 1 ? "s" : ""} pending catalog approval</div>
+                      <div style={{ fontFamily: PW.sans, fontSize: 12.5, color: "#6E5510", lineHeight: 1.5, marginTop: 2 }}>
+                        New items aren&apos;t in your catalog until an admin verifies and sources them. You can place this order — ProcureWide confirms pricing{summary.hasUnpriced ? " for items marked TBD" : ""} and availability before anything ships.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              {summary.vendorGroups.map((g) => <VendorGroup key={g.vendor} g={g} vendors={vendors} onChange={setQty} onRemove={remove} onOpen={setDetailSku} />)}
             </div>
             <div>
               <UrgencyCard meta={meta} setMeta={setMeta} />
@@ -499,6 +546,10 @@ export default function CartScreen({ products, vendors, cart, bookedSpend }: {
           </div>
         )}
       </div>
+
+      {detailSku && products[detailSku] && (
+        <ItemDetailDrawer product={products[detailSku]} vendors={vendors} onClose={() => setDetailSku(null)} />
+      )}
     </div>
   );
 }
