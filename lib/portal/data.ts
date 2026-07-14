@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
+import { companyLogoUrl } from "./logo";
 import type { PwVendor, PwProduct, PwCartLine, PwOrder, PwInventoryRow, PwDocumentRow, PwCatOverride } from "./types";
 
 /** Cookie that remembers which client account an admin is currently viewing. */
@@ -13,7 +14,7 @@ export type PortalContext = {
   isPwAdmin: boolean; // ProcureWide operator
   isAdmin: boolean; // app_admin or operator -> may manage/switch accounts
   actingCompanyId: string | null; // set when an admin is viewing someone else's account
-  account: { name: string; initials: string; plan: string; quarter: string };
+  account: { name: string; initials: string; plan: string; quarter: string; logoUrl: string | null };
 };
 
 /**
@@ -85,7 +86,7 @@ export async function getPortalContext(): Promise<PortalContext> {
     isPwAdmin: id.isPwAdmin,
     isAdmin: id.isAdmin,
     actingCompanyId: id.actingCompanyId,
-    account: { name, initials: initialsOf(name), plan, quarter: quarterLabel() },
+    account: { name, initials: initialsOf(name), plan, quarter: quarterLabel(), logoUrl: companyLogoUrl(id.companyId) },
   };
 }
 
@@ -96,6 +97,7 @@ export type PwAccount = {
   address: string | null;
   delivery_instructions: string | null;
   allowed_domains: string[] | null;
+  logoUrl: string | null;
   members: number;
   orders: number;
   inventory: number;
@@ -124,6 +126,7 @@ export async function fetchAccounts(): Promise<PwAccount[]> {
 
   return (comps || []).map((c) => ({
     ...c,
+    logoUrl: companyLogoUrl(c.id),
     members: count(profs, c.id),
     orders: count(orders, c.id),
     inventory: count(inv, c.id),

@@ -71,7 +71,7 @@ function NavRow({ href, label, icon, isActive, count, cart }: {
 
 export default function PortalSidebar({ cartCount, lowCount, savedQtr, account, isAdmin = false, isActing = false }: {
   cartCount: number; lowCount: number; savedQtr: number;
-  account: { name: string; initials: string; plan: string; quarter: string };
+  account: { name: string; initials: string; plan: string; quarter: string; logoUrl?: string | null };
   isAdmin?: boolean;
   isActing?: boolean;
 }) {
@@ -175,10 +175,16 @@ export default function PortalSidebar({ cartCount, lowCount, savedQtr, account, 
           </Link>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <div style={{ width: 26, height: 26, borderRadius: 4, background: "linear-gradient(135deg, #0E9560, #07112A)",
-            display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PW.sans, fontWeight: 700, fontSize: 10, color: "#fff" }}>
-            {account.initials}
-          </div>
+          {account.logoUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={account.logoUrl} alt="" onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              style={{ width: 26, height: 26, borderRadius: 4, objectFit: "cover", background: "#fff", border: `1px solid ${PW.line}` }} />
+          ) : (
+            <div style={{ width: 26, height: 26, borderRadius: 4, background: "linear-gradient(135deg, #0E9560, #07112A)",
+              display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PW.sans, fontWeight: 700, fontSize: 10, color: "#fff" }}>
+              {account.initials}
+            </div>
+          )}
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontFamily: PW.sans, fontWeight: 600, fontSize: 12.5, color: PW.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {account.name}

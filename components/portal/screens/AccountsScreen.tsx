@@ -5,8 +5,51 @@ import { useRouter } from "next/navigation";
 import { PW, SLDS_BLUE } from "@/lib/portal/pw";
 import { PageHeader, SectionCard, AppButton, EmptyState, Icon, Toast } from "@/components/portal/kit";
 import { money } from "@/lib/portal/pricing";
-import { setActingCompanyAction, createAccountAction, updateAccountAction, mintSignupKeyAction } from "@/lib/portal/actions";
+import { setActingCompanyAction, createAccountAction, updateAccountAction, mintSignupKeyAction, uploadAccountLogoAction, removeAccountLogoAction } from "@/lib/portal/actions";
 import type { PwAccount } from "@/lib/portal/data";
+
+function AccountAvatar({ account, size = 30 }: { account: PwAccount; size?: number }) {
+  const [failed, setFailed] = React.useState(false);
+  const initials = (account.name || "—").split(/\s+/).slice(0, 2).map((w) => w[0]?.toUpperCase() || "").join("");
+  if (account.logoUrl && !failed) {
+    // eslint-disable-next-line @next/next/no-img-element
+    return <img src={account.logoUrl + "?v=" + account.id} alt="" onError={() => setFailed(true)}
+      style={{ width: size, height: size, borderRadius: 6, objectFit: "cover", background: "#fff", border: `1px solid ${PW.line}`, flexShrink: 0 }} />;
+  }
+  return (
+    <span style={{ width: size, height: size, borderRadius: 6, flexShrink: 0, background: "linear-gradient(135deg,#0E9560,#07112A)",
+      display: "inline-flex", alignItems: "center", justifyContent: "center", fontFamily: PW.sans, fontWeight: 700, fontSize: size * 0.36, color: "#fff" }}>
+      {initials}
+    </span>
+  );
+}
+
+/** Read a chosen file as a data URL so it can go through the server action. */
+function LogoUploader({ account, onChanged }: { account: PwAccount; onChanged: (fn: () => Promise<void>, ok: string) => void }) {
+  const inputRef = React.useRef<HTMLInputElement>(null);
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+      <AccountAvatar account={account} size={48} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" style={{ display: "none" }}
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (file.size > 2 * 1024 * 1024) { Toast.show("Image must be under 2 MB", { tone: "danger" }); return; }
+            const reader = new FileReader();
+            reader.onload = () => onChanged(async () => { await uploadAccountLogoAction(account.id, String(reader.result)); }, "Logo updated");
+            reader.readAsDataURL(file);
+          }} />
+        <AppButton variant="secondary" size="sm" icon="upload" onClick={() => inputRef.current?.click()}>
+          {account.logoUrl ? "Replace logo" : "Upload logo"}
+        </AppButton>
+        {account.logoUrl && (
+          <AppButton variant="ghost" size="sm" onClick={() => onChanged(async () => { await removeAccountLogoAction(account.id); }, "Logo removed")}>Remove</AppButton>
+        )}
+      </div>
+    </div>
+  );
+}
 
 const field: React.CSSProperties = {
   width: "100%", padding: "9px 11px", fontFamily: PW.sans, fontSize: 13, color: PW.ink,
@@ -160,7 +203,9 @@ export default function AccountsScreen({
               return (
                 <div key={a.id}>
                   <div style={{ display: "grid", gridTemplateColumns: COLS, gap: 12, padding: "12px 16px", borderBottom: `1px solid ${PW.line}`, alignItems: "center", background: isHere ? "#FFFBF2" : "transparent" }}>
-                    <div style={{ minWidth: 0 }}>
+                    <div style={{ minWidth: 0, display: "flex", alignItems: "center", gap: 10 }}>
+                      <AccountAvatar account={a} size={30} />
+                      <div style={{ minWidth: 0 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                         <span style={{ fontFamily: PW.sans, fontWeight: 700, fontSize: 13.5, color: PW.ink, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name}</span>
                         {isHere && <span style={{ padding: "1px 6px", borderRadius: 10, background: "#FDF0D5", border: "1px solid #E7C98A", color: "#8A6308", fontSize: 10, fontWeight: 700 }}>VIEWING</span>}
@@ -168,6 +213,7 @@ export default function AccountsScreen({
                       </div>
                       <div style={{ marginTop: 2, fontFamily: PW.sans, fontSize: 11.5, color: PW.mute, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {a.contact_email || "no contact"}{a.address ? " · " + a.address : ""}
+                      </div>
                       </div>
                     </div>
                     <Stat>{a.members}</Stat>
@@ -186,6 +232,11 @@ export default function AccountsScreen({
 
                   {editing === a.id && (
                     <div style={{ padding: "16px 16px 20px", background: "#FAFBF7", borderBottom: `1px solid ${PW.line}` }}>
+                      <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: `1px solid ${PW.line}` }}>
+                        <label style={lbl}>Company logo</label>
+                        <LogoUploader account={a} onChanged={run} />
+                        <p style={{ margin: "8px 0 0", fontFamily: PW.sans, fontSize: 11.5, color: PW.mute }}>PNG, JPG, WEBP or SVG · under 2 MB · shows in the sidebar and account list.</p>
+                      </div>
                       <AccountForm
                         initial={a}
                         submitLabel="Save changes"

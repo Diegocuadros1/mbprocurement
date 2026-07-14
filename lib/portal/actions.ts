@@ -525,6 +525,29 @@ export async function signOutAction() {
   redirect("/auth");
 }
 
+/** Upload (or replace) a client account's logo. Admin only. Stored in Supabase
+ *  Storage bucket "logos" keyed by company id, so it stays centralized there. */
+export async function uploadAccountLogoAction(companyId: string, dataUrl: string) {
+  await requirePortalAdmin();
+  const m = dataUrl.match(/^data:(image\/(png|jpeg|jpg|webp|svg\+xml));base64,(.+)$/);
+  if (!m) throw new Error("Please choose a PNG, JPG, WEBP or SVG image.");
+  const contentType = m[1];
+  const bytes = Buffer.from(m[3], "base64");
+  if (bytes.length > 2 * 1024 * 1024) throw new Error("Image must be under 2 MB.");
+
+  const path = `company/${companyId}`;
+  const { error } = await supabaseAdmin.storage.from("logos").upload(path, bytes, { contentType, upsert: true });
+  if (error) throw new Error(error.message);
+  revalidatePath("/app", "layout");
+  return { ok: true };
+}
+
+export async function removeAccountLogoAction(companyId: string) {
+  await requirePortalAdmin();
+  await supabaseAdmin.storage.from("logos").remove([`company/${companyId}`]);
+  revalidatePath("/app", "layout");
+}
+
 /** Mint (or re-mint) the signup key a lab's staff use to self-register at /auth. */
 export async function mintSignupKeyAction(companyId: string, key: string) {
   await requirePortalAdmin();
