@@ -6,6 +6,7 @@ import React from "react";
 import { PW, SLDS_BLUE } from "@/lib/portal/pw";
 import { Icon, ObjIcon } from "./kit";
 import { money0 } from "@/lib/portal/pricing";
+import { signOutAction } from "@/lib/portal/actions";
 
 const SIDE_NAV: { sec?: string; items: { href: string; label: string; icon: string; cart?: boolean }[] }[] = [
   { items: [{ href: "/app", label: "Home", icon: "home" }] },
@@ -68,14 +69,17 @@ function NavRow({ href, label, icon, isActive, count, cart }: {
   );
 }
 
-export default function PortalSidebar({ cartCount, lowCount, savedQtr, account }: {
+export default function PortalSidebar({ cartCount, lowCount, savedQtr, account, isAdmin = false, isActing = false }: {
   cartCount: number; lowCount: number; savedQtr: number;
   account: { name: string; initials: string; plan: string; quarter: string };
+  isAdmin?: boolean;
+  isActing?: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
   const isActive = (href: string) => (href === "/app" ? pathname === "/app" : pathname.startsWith(href));
   const [newOpen, setNewOpen] = React.useState(false);
+  const [loggingOut, startLogout] = React.useTransition();
 
   return (
     <aside style={{ width: 224, minHeight: "100vh", background: "#FAFAF7", borderRight: `1px solid ${PW.line}`,
@@ -136,6 +140,17 @@ export default function PortalSidebar({ cartCount, lowCount, savedQtr, account }
             </div>
           </div>
         ))}
+
+        {isAdmin && (
+          <div>
+            <div style={{ padding: "8px 8px 4px", fontFamily: PW.sans, fontSize: 10, fontWeight: 700, color: PW.mute, textTransform: "uppercase", letterSpacing: "0.08em" }}>
+              Admin
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+              <NavRow href="/app/accounts" label="Client accounts" icon="building" isActive={isActive("/app/accounts")} count={0} />
+            </div>
+          </div>
+        )}
       </nav>
 
       {lowCount > 0 && (
@@ -148,23 +163,45 @@ export default function PortalSidebar({ cartCount, lowCount, savedQtr, account }
         </Link>
       )}
 
-      <div style={{ marginTop: "auto", padding: 10, background: PW.white, border: `1px solid ${PW.line}`, borderRadius: 4 }}>
+      <div style={{ marginTop: "auto", padding: 10, background: PW.white,
+        border: `1px solid ${isActing ? "#E7C98A" : PW.line}`, borderRadius: 4 }}>
+        {isActing && (
+          <Link href="/app/accounts" style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8, padding: "5px 7px",
+            background: "#FFF6E8", border: "1px solid #E7C98A", borderRadius: 3, textDecoration: "none" }}>
+            <Icon name="lock" size={12} color="#8A6308" />
+            <span style={{ fontFamily: PW.sans, fontSize: 10, fontWeight: 700, color: "#8A6308", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+              Viewing client account
+            </span>
+          </Link>
+        )}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ width: 26, height: 26, borderRadius: 4, background: "linear-gradient(135deg, #0E9560, #07112A)",
             display: "flex", alignItems: "center", justifyContent: "center", fontFamily: PW.sans, fontWeight: 700, fontSize: 10, color: "#fff" }}>
             {account.initials}
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: PW.sans, fontWeight: 600, fontSize: 12, color: PW.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            <div style={{ fontFamily: PW.sans, fontWeight: 600, fontSize: 12.5, color: PW.ink, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
               {account.name}
             </div>
-            <div style={{ fontFamily: PW.sans, fontSize: 11, color: PW.mute }}>{account.plan} plan</div>
           </div>
         </div>
         <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${PW.line}`, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
           <span style={{ fontFamily: PW.sans, fontSize: 11, color: PW.mute }}>Guaranteed savings</span>
           <span style={{ fontFamily: PW.mono, fontSize: 13, fontWeight: 600, color: "#0A7048" }}>{money0(savedQtr)}</span>
         </div>
+
+        <button
+          onClick={() => startLogout(() => signOutAction())}
+          disabled={loggingOut}
+          style={{
+            marginTop: 9, width: "100%", padding: "7px 9px", display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+            background: "transparent", border: `1px solid ${PW.line2}`, borderRadius: 4, cursor: loggingOut ? "default" : "pointer",
+            fontFamily: PW.sans, fontSize: 12, fontWeight: 600, color: PW.ink500, opacity: loggingOut ? 0.6 : 1,
+          }}
+        >
+          <Icon name="lock" size={13} color={PW.mute} />
+          {loggingOut ? "Signing out…" : "Sign out"}
+        </button>
       </div>
     </aside>
   );

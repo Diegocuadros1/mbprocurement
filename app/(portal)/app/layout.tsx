@@ -18,7 +18,14 @@ export default async function PortalLayout({
 
   return (
     <div style={{ display: "flex", minHeight: "100vh", background: "#F6F6F2" }}>
-      <PortalSidebar cartCount={count} lowCount={low} savedQtr={savedQtr} account={ctx.account} />
+      <PortalSidebar
+        cartCount={count}
+        lowCount={low}
+        savedQtr={savedQtr}
+        account={ctx.account}
+        isAdmin={ctx.isAdmin}
+        isActing={!!ctx.actingCompanyId}
+      />
       <main style={{ flex: 1, minWidth: 0, background: "#F6F6F2", minHeight: "100vh" }}>{children}</main>
       <ToastHost />
     </div>

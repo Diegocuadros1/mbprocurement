@@ -1,17 +1,35 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { createHash } from "node:crypto";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/supabase/admin";
 import { requireProfile } from "@/lib/auth";
+import { resolvePortalIdentity, ACTING_COOKIE } from "./data";
 import { cartSummary, orderArrivalDays, addDays } from "./pricing";
 import type { PwProduct } from "./types";
 
+/**
+ * Every mutation is scoped to the account the portal is CURRENTLY on — which,
+ * for an admin who has "entered" a client account, is that client's account.
+ */
 async function requireCompany() {
-  const { user, profile } = await requireProfile("/auth");
-  const companyId = (profile?.company_id as string | null) ?? null;
-  if (!companyId) throw new Error("No company is associated with this account.");
-  const supabase = await createClient();
-  return { supabase, userId: user.id, companyId };
+  const id = await resolvePortalIdentity();
+  if (!id.companyId) {
+    throw new Error(
+      id.isAdmin ? "Pick a client account first — open Accounts and choose one." : "No company is associated with this account."
+    );
+  }
+  return { supabase: id.supabase, userId: id.userId, companyId: id.companyId };
+}
+
+/** app_admin or ProcureWide operator — may manage/switch client accounts. */
+async function requirePortalAdmin() {
+  const id = await resolvePortalIdentity();
+  if (!id.isAdmin) throw new Error("Admin access required.");
+  return id;
 }
 
 // ProcureWide operator (pw_admin) — separate from app_admin. Server-enforced.
@@ -403,4 +421,123 @@ export async function clearCategoryOverrideAction(sku: string) {
   const { supabase, userId } = await requireCompany();
   await supabase.from("pw_cat_overrides").delete().eq("user_id", userId).eq("sku", sku);
   revalidatePortal();
+}
+
+// ───────── Admin: client accounts ─────────
+/**
+ * "Enter" a client account. From here on the whole portal — every screen and
+ * every mutation — is scoped to it. Pass null to return to your own account.
+ */
+export async function setActingCompanyAction(companyId: string | null) {
+  await requirePortalAdmin();
+  const jar = await cookies();
+  if (companyId) {
+    jar.set(ACTING_COOKIE, companyId, { httpOnly: true, sameSite: "lax", path: "/", maxAge: 60 * 60 * 12 });
+  } else {
+    jar.delete(ACTING_COOKIE);
+  }
+  revalidatePath("/app", "layout");
+}
+
+/**
+ * Create a client account. RLS (rightly) won't let even an admin INSERT into
+ * `companies` from the browser, so we check the caller is an admin server-side
+ * and then use the service-role client — which never leaves the server.
+ * Optionally mints the signup key their staff use to self-register at /auth.
+ */
+export async function createAccountAction(input: {
+  name: string;
+  contact_email?: string;
+  address?: string;
+  delivery_instructions?: string;
+  allowed_domains?: string; // comma separated
+  signupKey?: string;
+}) {
+  await requirePortalAdmin();
+  const name = input.name.trim();
+  if (!name) throw new Error("Account name is required.");
+
+  const domains = (input.allowed_domains || "")
+    .split(",")
+    .map((d) => d.trim().toLowerCase())
+    .filter(Boolean);
+
+  const { data: company, error } = await supabaseAdmin
+    .from("companies")
+    .insert({
+      name,
+      contact_email: input.contact_email?.trim() || null,
+      address: input.address?.trim() || null,
+      delivery_instructions: input.delivery_instructions?.trim() || null,
+      allowed_domains: domains,
+    })
+    .select("id, name")
+    .single();
+  if (error || !company) throw new Error(error?.message || "Could not create the account.");
+
+  if (input.signupKey?.trim()) {
+    const hash = "\\x" + createHash("sha256").update(input.signupKey.trim()).digest("hex");
+    await supabaseAdmin.from("signup_keys").insert({
+      company_id: company.id,
+      key_hash: hash,
+      key_type: "company",
+      is_active: true,
+      max_uses: null,
+      uses: 0,
+    });
+  }
+
+  revalidatePath("/app", "layout");
+  return { id: company.id, name: company.name };
+}
+
+export async function updateAccountAction(
+  id: string,
+  patch: { name?: string; contact_email?: string; address?: string; delivery_instructions?: string; allowed_domains?: string }
+) {
+  await requirePortalAdmin();
+  const upd: Record<string, unknown> = {};
+  if (patch.name !== undefined) upd.name = patch.name.trim();
+  if (patch.contact_email !== undefined) upd.contact_email = patch.contact_email.trim() || null;
+  if (patch.address !== undefined) upd.address = patch.address.trim() || null;
+  if (patch.delivery_instructions !== undefined) upd.delivery_instructions = patch.delivery_instructions.trim() || null;
+  if (patch.allowed_domains !== undefined) {
+    upd.allowed_domains = patch.allowed_domains
+      .split(",")
+      .map((d) => d.trim().toLowerCase())
+      .filter(Boolean);
+  }
+  const { error } = await supabaseAdmin.from("companies").update(upd).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/app", "layout");
+}
+
+// ───────── Session ─────────
+/**
+ * Sign out of the portal. Also clears the "acting account" cookie so an admin
+ * never comes back logged in and silently still inside a client's account.
+ */
+export async function signOutAction() {
+  const supabase = await createClient();
+  await supabase.auth.signOut();
+  const jar = await cookies();
+  jar.delete(ACTING_COOKIE);
+  redirect("/auth");
+}
+
+/** Mint (or re-mint) the signup key a lab's staff use to self-register at /auth. */
+export async function mintSignupKeyAction(companyId: string, key: string) {
+  await requirePortalAdmin();
+  if (!key.trim()) throw new Error("Enter a signup key.");
+  const hash = "\\x" + createHash("sha256").update(key.trim()).digest("hex");
+  const { error } = await supabaseAdmin.from("signup_keys").insert({
+    company_id: companyId,
+    key_hash: hash,
+    key_type: "company",
+    is_active: true,
+    max_uses: null,
+    uses: 0,
+  });
+  if (error) throw new Error(error.message);
+  revalidatePath("/app", "layout");
 }

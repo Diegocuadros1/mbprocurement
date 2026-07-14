@@ -1,13 +1,59 @@
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { requireProfile } from "@/lib/auth";
 import type { PwVendor, PwProduct, PwCartLine, PwOrder, PwInventoryRow, PwDocumentRow, PwCatOverride } from "./types";
 
+/** Cookie that remembers which client account an admin is currently viewing. */
+export const ACTING_COOKIE = "pw_acting_company";
+
 export type PortalContext = {
   userId: string;
-  companyId: string | null;
-  isPwAdmin: boolean; // ProcureWide operator (separate from app_admin)
+  companyId: string | null; // the account the portal is CURRENTLY operating on
+  ownCompanyId: string | null; // the admin's own company (if any)
+  isPwAdmin: boolean; // ProcureWide operator
+  isAdmin: boolean; // app_admin or operator -> may manage/switch accounts
+  actingCompanyId: string | null; // set when an admin is viewing someone else's account
   account: { name: string; initials: string; plan: string; quarter: string };
 };
+
+/**
+ * Resolve who the caller is and WHICH account the portal should act on.
+ *
+ * A normal member always acts on their own company. An admin may "enter" any
+ * client account — we remember that choice in a cookie, and from then on every
+ * screen and every mutation is scoped to that account (RLS already trusts
+ * app_admin across companies, so this is a scoping choice, not a privilege one).
+ */
+export async function resolvePortalIdentity() {
+  const { user, profile } = await requireProfile("/auth");
+  const supabase = await createClient();
+
+  const { data: me } = await supabase.from("profiles").select("is_pw_admin").eq("id", user.id).maybeSingle();
+  const isPwAdmin = !!me?.is_pw_admin;
+  const role = (profile?.role as string) ?? "";
+  const isAdmin = role === "app_admin" || isPwAdmin;
+  const ownCompanyId = (profile?.company_id as string | null) ?? null;
+
+  let actingCompanyId: string | null = null;
+  if (isAdmin) {
+    const jar = await cookies();
+    const picked = jar.get(ACTING_COOKIE)?.value || null;
+    if (picked) {
+      const { data } = await supabase.from("companies").select("id").eq("id", picked).maybeSingle();
+      if (data) actingCompanyId = picked; // ignore a stale/deleted account
+    }
+  }
+
+  return {
+    supabase,
+    userId: user.id,
+    isPwAdmin,
+    isAdmin,
+    ownCompanyId,
+    actingCompanyId,
+    companyId: actingCompanyId ?? ownCompanyId,
+  };
+}
 
 function quarterLabel(d = new Date()): string {
   return `Q${Math.floor(d.getMonth() / 3) + 1} ${d.getFullYear()}`;
@@ -22,21 +68,68 @@ function initialsOf(name: string): string {
 
 /** Auth gate + company/account context for the portal shell and screens. */
 export async function getPortalContext(): Promise<PortalContext> {
-  const { user, profile } = await requireProfile("/auth");
-  const companyId = (profile?.company_id as string | null) ?? null;
-  const supabase = await createClient();
-  let name = "Your lab";
-  if (companyId) {
-    const { data } = await supabase.from("companies").select("name").eq("id", companyId).single();
+  const id = await resolvePortalIdentity();
+
+  let name = id.isAdmin && !id.companyId ? "No account selected" : "Your lab";
+  let plan = "Growth";
+  if (id.companyId) {
+    const { data } = await id.supabase.from("companies").select("name").eq("id", id.companyId).single();
     if (data?.name) name = data.name;
+    plan = "Lab Support";
   }
-  const { data: me } = await supabase.from("profiles").select("is_pw_admin").eq("id", user.id).maybeSingle();
+
   return {
-    userId: user.id,
-    companyId,
-    isPwAdmin: !!me?.is_pw_admin,
-    account: { name, initials: initialsOf(name), plan: "Growth", quarter: quarterLabel() },
+    userId: id.userId,
+    companyId: id.companyId,
+    ownCompanyId: id.ownCompanyId,
+    isPwAdmin: id.isPwAdmin,
+    isAdmin: id.isAdmin,
+    actingCompanyId: id.actingCompanyId,
+    account: { name, initials: initialsOf(name), plan, quarter: quarterLabel() },
   };
+}
+
+export type PwAccount = {
+  id: string;
+  name: string;
+  contact_email: string | null;
+  address: string | null;
+  delivery_instructions: string | null;
+  allowed_domains: string[] | null;
+  members: number;
+  orders: number;
+  inventory: number;
+  cart: number;
+  spend: number;
+};
+
+/** Every client account + live stats. Admin only. */
+export async function fetchAccounts(): Promise<PwAccount[]> {
+  const id = await resolvePortalIdentity();
+  if (!id.isAdmin) return [];
+  const sb = id.supabase;
+
+  const [{ data: comps }, { data: profs }, { data: orders }, { data: inv }, { data: cart }, { data: spend }] =
+    await Promise.all([
+      sb.from("companies").select("id, name, contact_email, address, delivery_instructions, allowed_domains").order("name"),
+      sb.from("profiles").select("company_id"),
+      sb.from("pw_orders").select("company_id, total"),
+      sb.from("pw_inventory").select("company_id"),
+      sb.from("pw_cart").select("company_id"),
+      sb.from("pw_vendor_spend").select("company_id, qtd_spend"),
+    ]);
+
+  const count = (rows: { company_id: string | null }[] | null, cid: string) =>
+    (rows || []).filter((r) => r.company_id === cid).length;
+
+  return (comps || []).map((c) => ({
+    ...c,
+    members: count(profs, c.id),
+    orders: count(orders, c.id),
+    inventory: count(inv, c.id),
+    cart: count(cart, c.id),
+    spend: (spend || []).filter((s) => s.company_id === c.id).reduce((a, s) => a + Number(s.qtd_spend || 0), 0),
+  })) as PwAccount[];
 }
 
 export async function fetchVendors(): Promise<Record<string, PwVendor>> {
