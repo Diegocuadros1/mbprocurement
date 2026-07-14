@@ -1,9 +1,13 @@
 "use client";
 import { useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { z } from "zod";
-import { signUpAction, loginAction } from "./actions";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
+import { useToast } from "@/hooks/use-toast";
+import { signUpAction, loginAction } from "./actions";
+
+/* ── Design ported from the new site's "Log In" page. Auth logic (Supabase
+   loginAction / signUpAction) is the existing, working implementation. ── */
 
 const loginSchema = z.object({
   email: z.email("Please enter a valid email address"),
@@ -18,356 +22,375 @@ const signupSchema = z
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string(),
   })
-  .refine((data) => data.password === data.confirmPassword, {
+  .refine((d) => d.password === d.confirmPassword, {
     message: "Passwords don't match",
     path: ["confirmPassword"],
   });
 
-const errStyle: React.CSSProperties = { color: "var(--danger)", fontSize: 12.5, fontWeight: 500 };
+const NAV = [
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/areas-we-serve", label: "Areas we serve" },
+  { href: "/labs-we-support", label: "Labs we support" },
+  { href: "/prodigy-labs", label: "Prodigy Labs" },
+];
 
-const Auth = () => {
+const GREEN_BTN: React.CSSProperties = {
+  background: "linear-gradient(180deg,#3FCF8A 0%,#14B06E 48%,#0C7F4C 52%,#0A6B3F 100%)",
+  border: "1px solid #0A5C3C",
+  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.5), 0 2px 6px rgba(10,21,48,0.18)",
+  color: "#FFFFFF",
+  fontFamily: "var(--pw-font-sans)",
+  fontSize: 15,
+  fontWeight: 600,
+  padding: "14px 22px",
+  borderRadius: 8,
+  cursor: "pointer",
+  width: "100%",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 10,
+};
+
+const INPUT: React.CSSProperties = {
+  width: "100%",
+  boxSizing: "border-box",
+  padding: "12px 14px",
+  fontFamily: "var(--pw-font-sans)",
+  fontSize: 14,
+  color: "var(--pw-ink)",
+  background: "#FFFFFF",
+  border: "1px solid var(--pw-line-2)",
+  borderRadius: 8,
+  outline: "none",
+};
+
+const FIELD_LABEL: React.CSSProperties = {
+  display: "block",
+  fontSize: 12,
+  fontWeight: 600,
+  color: "var(--pw-ink-500)",
+  marginBottom: 6,
+};
+
+const errText: React.CSSProperties = { display: "block", marginTop: 6, fontSize: 12, color: "#B5384A", fontWeight: 500 };
+
+export default function AuthPage() {
   const router = useRouter();
   const { toast } = useToast();
 
   const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
   const [emailConfirm, setEmailConfirm] = useState(false);
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    companyKey: "",
-    password: "",
-    confirmPassword: "",
-  });
+  const [formError, setFormError] = useState("");
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [form, setForm] = useState({ name: "", email: "", companyKey: "", password: "", confirmPassword: "" });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
-    if (errors[e.target.name]) setErrors({ ...errors, [e.target.name]: "" });
+  const set = (k: keyof typeof form, v: string) => {
+    setForm((f) => ({ ...f, [k]: v }));
+    if (errors[k]) setErrors((e) => ({ ...e, [k]: "" }));
+    if (formError) setFormError("");
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    const result = loginSchema.safeParse({ email: formData.email, password: formData.password });
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((err) => {
-        if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
-      });
-      setErrors(fieldErrors);
+    setFormError("");
+    const r = loginSchema.safeParse({ email: form.email, password: form.password });
+    if (!r.success) {
+      const fe: Record<string, string> = {};
+      r.error.issues.forEach((i) => i.path[0] && (fe[i.path[0] as string] = i.message));
+      setErrors(fe);
       return;
     }
-    setLoading(true);
+    setBusy(true);
     const fd = new FormData();
-    fd.set("email", formData.email);
-    fd.set("password", formData.password);
+    fd.set("email", form.email);
+    fd.set("password", form.password);
     const res = await loginAction(fd);
     if (res.error) {
-      toast({ title: "Invalid", description: "Invalid email or password." });
-      setLoading(false);
-    } else {
-      toast({ title: "Login Successful", description: "Welcome Back!" });
-      router.replace("/app");
-      router.refresh();
+      setFormError("Invalid email or password. Please try again.");
+      setBusy(false);
+      return;
     }
-    setLoading(false);
+    toast({ title: "Login successful", description: "Welcome back!" });
+    router.replace("/app");
+    router.refresh();
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrors({});
-    const result = signupSchema.safeParse(formData);
-    if (!result.success) {
-      const fieldErrors: Record<string, string> = {};
-      result.error.issues.forEach((err) => {
-        if (err.path[0]) fieldErrors[err.path[0] as string] = err.message;
-      });
-      setErrors(fieldErrors);
+    setFormError("");
+    const r = signupSchema.safeParse(form);
+    if (!r.success) {
+      const fe: Record<string, string> = {};
+      r.error.issues.forEach((i) => i.path[0] && (fe[i.path[0] as string] = i.message));
+      setErrors(fe);
       return;
     }
-    setLoading(true);
+    setBusy(true);
     const fd = new FormData();
-    fd.set("name", formData.name);
-    fd.set("email", formData.email);
-    fd.set("password", formData.password);
-    fd.set("companyKey", formData.companyKey);
+    fd.set("name", form.name);
+    fd.set("email", form.email);
+    fd.set("password", form.password);
+    fd.set("companyKey", form.companyKey);
     const res = await signUpAction(fd);
     if (res.error) {
-      toast({ title: "Signup Key Invalid!", description: res.error });
-      setLoading(false);
-    } else {
-      setEmailConfirm(true);
-      toast({ title: "Success!", description: "" });
-      setLoading(false);
+      setFormError(res.error);
+      setBusy(false);
+      return;
     }
+    setEmailConfirm(true);
+    setBusy(false);
   };
 
   const switchMode = () => {
-    setIsLogin(!isLogin);
+    setIsLogin((v) => !v);
     setErrors({});
-    setFormData({ name: "", email: "", companyKey: "", password: "", confirmPassword: "" });
+    setFormError("");
+    setForm({ name: "", email: "", companyKey: "", password: "", confirmPassword: "" });
   };
 
-  const EyeIcon = showPassword ? (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M9.9 4.2A10.9 10.9 0 0 1 12 4c6.5 0 10 7 10 7a18 18 0 0 1-3.3 4.2M6.6 6.6A18 18 0 0 0 2 11s3.5 7 10 7a10.9 10.9 0 0 0 4-.7" />
-      <path d="m2 2 20 20" />
-      <path d="M9.5 9.5a3 3 0 0 0 4.2 4.2" />
-    </svg>
-  ) : (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
+  const ErrorAlert = () =>
+    formError ? (
+      <div role="alert" style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 16, padding: "10px 12px", background: "#F7E2E5", border: "1px solid #E4B8BF", borderRadius: 8 }}>
+        <span style={{ flex: "none", width: 16, height: 16, borderRadius: 999, background: "#B5384A", color: "#fff", fontSize: 11, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 1 }}>!</span>
+        <span style={{ fontSize: 13, lineHeight: 1.45, color: "#7A2230" }}>{formError}</span>
+      </div>
+    ) : null;
+
+  const Spinner = () => (
+    <span style={{ width: 15, height: 15, border: "2px solid rgba(255,255,255,0.45)", borderTopColor: "#fff", borderRadius: 999, display: "inline-block", animation: "pw-spin 0.7s linear infinite" }} />
   );
 
   return (
-    <div className="pw-site">
-      <div className="auth">
-        {/* Brand panel — the marketing "site" half */}
-        <aside className="auth-brand">
-          <div className="auth-brand-top">
-            <a className="brand" href="/" aria-label="ProcureWide home">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/pw/logo.png" width={30} height={30} alt="" />
-              <span>ProcureWide</span>
-            </a>
-            <a className="auth-back" href="/">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 12H5" />
-                <path d="M11 18l-6-6 6-6" />
-              </svg>
-              Back to site
-            </a>
-          </div>
+    <div style={{ background: "var(--pw-paper)", color: "var(--pw-ink)", fontFamily: "var(--pw-font-sans)" }}>
+      {/* ── Nav ── */}
+      <header style={{ position: "sticky", top: 0, zIndex: 50, background: "rgba(250,251,247,0.78)", backdropFilter: "blur(14px) saturate(140%)", borderBottom: "1px solid var(--pw-line)" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 40px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 24 }}>
+          <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 10, color: "var(--pw-ink)" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/pw/logo.png" width={30} height={30} alt="ProcureWide logo" style={{ display: "block" }} />
+            <span style={{ fontWeight: 700, fontSize: 16, letterSpacing: "-0.01em" }}>ProcureWide</span>
+          </Link>
+          <nav aria-label="Primary" style={{ display: "flex", alignItems: "center", gap: 28, fontSize: 14, fontWeight: 500, color: "var(--pw-ink)" }}>
+            {NAV.map((n) => (
+              <Link key={n.href} href={n.href} style={{ borderBottom: "1px solid transparent", padding: "2px 0" }}>
+                {n.label}
+              </Link>
+            ))}
+            <span style={{ borderBottom: "1px solid var(--pw-ink)", padding: "2px 0" }}>Log in</span>
+            <Link href="/submit-order" style={{ background: "linear-gradient(180deg,#14B06E 0%,#10A060 45%,#0C7F4C 100%)", border: "1px solid #0A6B47", boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 1px 2px rgba(10,21,48,0.2)", color: "#FFFFFF", fontSize: 13.5, fontWeight: 600, padding: "9px 18px", borderRadius: 6 }}>
+              Submit an order
+            </Link>
+          </nav>
+        </div>
+      </header>
 
-          <div className="auth-brand-mid">
-            <span className="eyebrow">Your procurement, in one place</span>
-            <h2 className="auth-headline">
-              Everything you order, <span className="accent">on one screen.</span>
-            </h2>
-            <p className="auth-sub">
-              Sign in to request items, approve orders, track every shipment to your door, and see exactly what
-              you&apos;re spending and saving.
-            </p>
-            <div className="auth-points">
-              {[
-                "Real vendor prices on every line — no markups",
-                "Live status on everything in transit",
-                "One itemized bill each month",
-              ].map((t) => (
-                <div className="auth-point" key={t}>
-                  <span className="ck">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+      {/* ── Main card ── */}
+      <main style={{ minHeight: "calc(100vh - 61px)", display: "flex", alignItems: "center", justifyContent: "center", padding: "72px 40px" }}>
+        <div style={{ width: "100%", maxWidth: 1040 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.05fr 0.95fr", background: "#FFFFFF", border: "1px solid var(--pw-line)", borderRadius: 16, boxShadow: "var(--pw-shadow-lg)", overflow: "hidden" }}>
+            {/* Left: form */}
+            <div style={{ padding: "48px 48px 44px" }}>
+              {emailConfirm ? (
+                <div style={{ minHeight: 428, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  <div style={{ width: 56, height: 56, borderRadius: 999, background: "var(--pw-green-100)", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18 }}>
+                    <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#0B7E4A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M20 6L9 17l-5-5" />
                     </svg>
-                  </span>{" "}
-                  {t}
+                  </div>
+                  <h1 style={{ margin: "0 0 10px", fontFamily: "var(--pw-font-display)", fontWeight: 600, fontSize: 30, lineHeight: 1.08, letterSpacing: "-0.02em" }}>Confirm your account.</h1>
+                  <p style={{ margin: "0 0 26px", fontSize: 14.5, lineHeight: 1.62, color: "var(--pw-fg-2)", maxWidth: "44ch" }}>
+                    We&apos;ve sent a verification link to <b>{form.email}</b>. Click it to activate your account, then come back here to log in.
+                  </p>
+                  <div style={{ display: "flex", gap: 14, alignItems: "center", flexWrap: "wrap" }}>
+                    <button type="button" onClick={() => { setEmailConfirm(false); setIsLogin(true); }} style={{ background: "var(--pw-ink)", color: "#FFFFFF", fontSize: 14, fontWeight: 600, padding: "12px 20px", borderRadius: 8, border: 0, cursor: "pointer" }}>
+                      Back to log in
+                    </button>
+                  </div>
                 </div>
+              ) : isLogin ? (
+                <div>
+                  <p style={{ margin: "0 0 12px", fontFamily: "var(--pw-font-mono)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pw-green-700)" }}>Welcome back</p>
+                  <h1 style={{ margin: "0 0 8px", fontFamily: "var(--pw-font-display)", fontWeight: 600, fontSize: 32, lineHeight: 1.08, letterSpacing: "-0.02em" }}>Log in to ProcureWide</h1>
+                  <p style={{ margin: "0 0 30px", fontSize: 14.5, lineHeight: 1.6, color: "var(--pw-fg-3)" }}>Access your lab&apos;s procurement portal.</p>
+
+                  <form onSubmit={handleLogin} noValidate>
+                    <label style={{ display: "block", marginBottom: 18 }}>
+                      <span style={FIELD_LABEL}>Work email</span>
+                      <input name="email" type="email" autoComplete="email" placeholder="you@yourlab.com" value={form.email} onChange={(e) => set("email", e.target.value)} style={INPUT} />
+                      {errors.email && <span style={errText}>{errors.email}</span>}
+                    </label>
+
+                    <label style={{ display: "block", marginBottom: 16 }}>
+                      <span style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 6 }}>
+                        <span style={{ fontSize: 12, fontWeight: 600, color: "var(--pw-ink-500)" }}>Password</span>
+                        <a href="mailto:hello@procurewide.com?subject=Password%20reset" style={{ fontSize: 12, fontWeight: 600, color: "var(--pw-green-700)" }}>Forgot password?</a>
+                      </span>
+                      <span style={{ position: "relative", display: "block" }}>
+                        <input name="password" type={showPw ? "text" : "password"} autoComplete="current-password" placeholder="••••••••" value={form.password} onChange={(e) => set("password", e.target.value)} style={{ ...INPUT, padding: "12px 66px 12px 14px" }} />
+                        <button type="button" onClick={() => setShowPw((s) => !s)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: 0, cursor: "pointer", fontFamily: "var(--pw-font-mono)", fontSize: 11, letterSpacing: "0.04em", fontWeight: 600, color: "var(--pw-mute)", padding: "6px 8px" }}>
+                          {showPw ? "HIDE" : "SHOW"}
+                        </button>
+                      </span>
+                      {errors.password && <span style={errText}>{errors.password}</span>}
+                    </label>
+
+                    <label style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, cursor: "pointer", userSelect: "none" }}>
+                      <input name="remember" type="checkbox" defaultChecked style={{ width: 15, height: 15, accentColor: "var(--pw-green)", cursor: "pointer" }} />
+                      <span style={{ fontSize: 13, color: "var(--pw-fg-2)" }}>Keep me signed in on this device</span>
+                    </label>
+
+                    <ErrorAlert />
+
+                    <button type="submit" disabled={busy} style={{ ...GREEN_BTN, opacity: busy ? 0.85 : 1 }}>
+                      {busy ? (<><Spinner />Signing in…</>) : "Log in"}
+                    </button>
+                  </form>
+
+                  <p style={{ margin: "26px 0 0", paddingTop: 22, borderTop: "1px solid var(--pw-line)", fontSize: 13.5, lineHeight: 1.6, color: "var(--pw-fg-3)" }}>
+                    Don&apos;t have access yet?{" "}
+                    <Link href="/submit-order" style={{ color: "var(--pw-green-700)", fontWeight: 600, borderBottom: "1px solid var(--pw-green-100)", paddingBottom: 1 }}>
+                      Submit an example order
+                    </Link>{" "}
+                    and we&apos;ll set your lab up.
+                  </p>
+                  <p style={{ margin: "10px 0 0", fontSize: 13.5, color: "var(--pw-fg-3)" }}>
+                    Have a company signup key?{" "}
+                    <button type="button" onClick={switchMode} style={{ background: "transparent", border: 0, padding: 0, cursor: "pointer", fontFamily: "var(--pw-font-sans)", fontSize: 13.5, fontWeight: 600, color: "var(--pw-green-700)" }}>
+                      Create your account
+                    </button>
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <p style={{ margin: "0 0 12px", fontFamily: "var(--pw-font-mono)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pw-green-700)" }}>Get started</p>
+                  <h1 style={{ margin: "0 0 8px", fontFamily: "var(--pw-font-display)", fontWeight: 600, fontSize: 32, lineHeight: 1.08, letterSpacing: "-0.02em" }}>Create your account</h1>
+                  <p style={{ margin: "0 0 30px", fontSize: 14.5, lineHeight: 1.6, color: "var(--pw-fg-3)" }}>Use the signup key your company received from ProcureWide.</p>
+
+                  <form onSubmit={handleSignup} noValidate>
+                    <label style={{ display: "block", marginBottom: 16 }}>
+                      <span style={FIELD_LABEL}>Full name</span>
+                      <input type="text" placeholder="Jane Doe" value={form.name} onChange={(e) => set("name", e.target.value)} style={INPUT} />
+                      {errors.name && <span style={errText}>{errors.name}</span>}
+                    </label>
+                    <label style={{ display: "block", marginBottom: 16 }}>
+                      <span style={FIELD_LABEL}>Work email</span>
+                      <input type="email" autoComplete="email" placeholder="you@yourlab.com" value={form.email} onChange={(e) => set("email", e.target.value)} style={INPUT} />
+                      {errors.email && <span style={errText}>{errors.email}</span>}
+                    </label>
+                    <label style={{ display: "block", marginBottom: 16 }}>
+                      <span style={FIELD_LABEL}>Company signup key</span>
+                      <input type="text" placeholder="Enter your company key" value={form.companyKey} onChange={(e) => set("companyKey", e.target.value)} style={INPUT} />
+                      {errors.companyKey && <span style={errText}>{errors.companyKey}</span>}
+                    </label>
+                    <label style={{ display: "block", marginBottom: 16 }}>
+                      <span style={FIELD_LABEL}>Password</span>
+                      <span style={{ position: "relative", display: "block" }}>
+                        <input type={showPw ? "text" : "password"} autoComplete="new-password" placeholder="••••••••" value={form.password} onChange={(e) => set("password", e.target.value)} style={{ ...INPUT, padding: "12px 66px 12px 14px" }} />
+                        <button type="button" onClick={() => setShowPw((s) => !s)} style={{ position: "absolute", right: 8, top: "50%", transform: "translateY(-50%)", background: "transparent", border: 0, cursor: "pointer", fontFamily: "var(--pw-font-mono)", fontSize: 11, fontWeight: 600, color: "var(--pw-mute)", padding: "6px 8px" }}>
+                          {showPw ? "HIDE" : "SHOW"}
+                        </button>
+                      </span>
+                      {errors.password && <span style={errText}>{errors.password}</span>}
+                    </label>
+                    <label style={{ display: "block", marginBottom: 22 }}>
+                      <span style={FIELD_LABEL}>Confirm password</span>
+                      <input type={showPw ? "text" : "password"} autoComplete="new-password" placeholder="••••••••" value={form.confirmPassword} onChange={(e) => set("confirmPassword", e.target.value)} style={INPUT} />
+                      {errors.confirmPassword && <span style={errText}>{errors.confirmPassword}</span>}
+                    </label>
+
+                    <ErrorAlert />
+
+                    <button type="submit" disabled={busy} style={{ ...GREEN_BTN, opacity: busy ? 0.85 : 1 }}>
+                      {busy ? (<><Spinner />Creating…</>) : "Create account"}
+                    </button>
+                  </form>
+
+                  <p style={{ margin: "26px 0 0", paddingTop: 22, borderTop: "1px solid var(--pw-line)", fontSize: 13.5, color: "var(--pw-fg-3)" }}>
+                    Already have an account?{" "}
+                    <button type="button" onClick={switchMode} style={{ background: "transparent", border: 0, padding: 0, cursor: "pointer", fontFamily: "var(--pw-font-sans)", fontSize: 13.5, fontWeight: 600, color: "var(--pw-green-700)" }}>
+                      Log in
+                    </button>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* Right: ink panel */}
+            <div style={{ position: "relative", background: "linear-gradient(165deg,#0E1E44 0%, #0A1530 62%)", color: "#FFFFFF", padding: "48px 44px", overflow: "hidden" }}>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/double-helix.png" alt="" style={{ position: "absolute", right: -46, bottom: -40, height: 300, opacity: 0.14, pointerEvents: "none" }} />
+              <div style={{ position: "relative" }}>
+                <p style={{ margin: "0 0 20px", fontFamily: "var(--pw-font-mono)", fontSize: 11, letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--pw-green-300)" }}>For enrolled labs</p>
+                <h2 style={{ margin: "0 0 24px", fontFamily: "var(--pw-font-display)", fontWeight: 600, fontSize: 24, lineHeight: 1.16, letterSpacing: "-0.01em" }}>Everything your lab orders, in one portal.</h2>
+                <div style={{ borderTop: "1px solid rgba(255,255,255,0.16)" }}>
+                  {[
+                    ["A", "Request and approve in one place, with vendor pricing side by side on every line."],
+                    ["B", "Live status on every order, from purchase to consolidated drop-off at your bench."],
+                    ["C", "Spend by vendor and category, documents on file, one itemized bill a month."],
+                  ].map(([k, v]) => (
+                    <div key={k} style={{ display: "flex", gap: 16, padding: "15px 0", borderBottom: "1px solid rgba(255,255,255,0.14)", alignItems: "baseline" }}>
+                      <span style={{ fontFamily: "var(--pw-font-mono)", fontSize: 11, color: "var(--pw-green-300)" }}>{k}</span>
+                      <span style={{ fontSize: 13.5, lineHeight: 1.5, color: "rgba(255,255,255,0.86)" }}>{v}</span>
+                    </div>
+                  ))}
+                </div>
+                <p style={{ margin: "28px 0 0", fontFamily: "var(--pw-font-mono)", fontSize: 10.5, letterSpacing: "0.08em", color: "rgba(255,255,255,0.45)" }}>APP.PROCUREWIDE.COM · AN AFFILIATE OF PRODIGY LABS</p>
+              </div>
+            </div>
+          </div>
+
+          <p style={{ margin: "22px 0 0", textAlign: "center", fontFamily: "var(--pw-font-mono)", fontSize: 10.5, letterSpacing: "0.06em", color: "var(--pw-mute)" }}>
+            SECURE LOGIN · PORTAL ACCESS IS PROVISIONED PER YOUR LAB SUPPORT AGREEMENT
+          </p>
+        </div>
+      </main>
+
+      {/* ── Footer ── */}
+      <footer style={{ borderTop: "1px solid var(--pw-line-2)", background: "var(--pw-paper)" }}>
+        <div style={{ maxWidth: 1280, margin: "0 auto", padding: "48px 40px 24px" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr 1fr 1fr", gap: 40, marginBottom: 40 }}>
+            <div>
+              <Link href="/" style={{ display: "inline-flex", alignItems: "center", gap: 9, fontWeight: 700, fontSize: 15, color: "var(--pw-ink)", marginBottom: 12 }}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/pw/logo.png" width={24} height={24} alt="" style={{ display: "block" }} />
+                <span>ProcureWide</span>
+              </Link>
+              <p style={{ margin: "0 0 10px", fontSize: 13.5, lineHeight: 1.6, color: "var(--pw-fg-3)", maxWidth: "36ch" }}>
+                San Diego&apos;s lab supply, equipment, and software partner. Sourced across our vendor network, consolidated at our facility, delivered on our own routes.
+              </p>
+              <p style={{ margin: "0 0 6px", fontFamily: "var(--pw-font-display)", fontWeight: 600, fontSize: 16, color: "var(--pw-ink)" }}>Stock the bench. Scale the science.</p>
+              <p style={{ margin: 0, fontFamily: "var(--pw-font-mono)", fontSize: 11, letterSpacing: "0.05em", color: "var(--pw-green-700)" }}>Biotech partners since 2018</p>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <h5 style={{ margin: "0 0 5px", fontFamily: "var(--pw-font-mono)", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", color: "var(--pw-mute)" }}>EXPLORE</h5>
+              {NAV.slice(0, 3).map((n) => (
+                <Link key={n.href} href={n.href} style={{ fontSize: 13.5, color: "var(--pw-fg-2)" }}>{n.label}</Link>
               ))}
             </div>
-            <div className="auth-shot">
-              <div className="auth-shot-bar">
-                <i />
-                <i />
-                <i />
-              </div>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src="/pw/product-dashboard.png"
-                width={914}
-                height={530}
-                alt="ProcureWide dashboard showing spend, savings, and reorders"
-                loading="lazy"
-              />
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <h5 style={{ margin: "0 0 5px", fontFamily: "var(--pw-font-mono)", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", color: "var(--pw-mute)" }}>COMPANY</h5>
+              <Link href="/prodigy-labs" style={{ fontSize: 13.5, color: "var(--pw-fg-2)" }}>Prodigy Labs</Link>
+              <a href="mailto:hello@procurewide.com?subject=Contact" style={{ fontSize: 13.5, color: "var(--pw-fg-2)" }}>Contact</a>
+              <Link href="/auth" style={{ fontSize: 13.5, color: "var(--pw-fg-2)" }}>Log in</Link>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              <h5 style={{ margin: "0 0 5px", fontFamily: "var(--pw-font-mono)", fontSize: 10.5, fontWeight: 500, letterSpacing: "0.07em", color: "var(--pw-mute)" }}>GET IN TOUCH</h5>
+              <a href="mailto:hello@procurewide.com" style={{ fontSize: 13.5, color: "var(--pw-fg-2)" }}>hello@procurewide.com</a>
+              <Link href="/submit-order" style={{ fontSize: 13.5, color: "var(--pw-fg-2)" }}>Submit an example order</Link>
+              <span style={{ fontSize: 13.5, color: "var(--pw-fg-3)" }}>San Diego, California</span>
             </div>
           </div>
-
-          <div className="auth-brand-foot">
-            <span className="tag">Made by Scientists, for Science</span>
-            <span>100+ vendors · One relationship</span>
+          <div style={{ borderTop: "1px solid var(--pw-line)", paddingTop: 16, display: "flex", justifyContent: "space-between", gap: 16, fontFamily: "var(--pw-font-mono)", fontSize: 10.5, letterSpacing: "0.05em", color: "var(--pw-mute)", flexWrap: "wrap" }}>
+            <span>© 2026 PROCUREWIDE · SAN DIEGO, CA</span>
+            <span>LAB SUPPLIES · EQUIPMENT · SOFTWARE · SCHEDULED DELIVERY</span>
           </div>
-        </aside>
-
-        {/* Form panel — the functional "portal" half */}
-        <main className="auth-pane">
-          <div className="auth-card">
-            {emailConfirm ? (
-              <>
-                <span className="eyebrow">Almost there</span>
-                <h1>Confirm your account</h1>
-                <p className="sub">
-                  We&apos;ve sent a verification link to <b>{formData.email || "your email"}</b>. Click it to activate
-                  your account, then come back here to sign in.
-                </p>
-                <div className="auth-actions" style={{ marginTop: 28 }}>
-                  <button
-                    type="button"
-                    className="btn btn-secondary btn-lg btn-block"
-                    onClick={() => {
-                      setEmailConfirm(false);
-                      setIsLogin(true);
-                    }}
-                  >
-                    Back to sign in
-                  </button>
-                </div>
-              </>
-            ) : isLogin ? (
-              <>
-                <span className="eyebrow">Welcome back</span>
-                <h1>Sign in</h1>
-                <p className="sub">Access your ProcureWide account.</p>
-
-                <form className="auth-form" onSubmit={handleLogin} noValidate>
-                  <div className="field">
-                    <label htmlFor="email">Work email</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="5" width="18" height="14" rx="2" />
-                        <path d="m3 7 9 6 9-6" />
-                      </svg>
-                      <input type="email" id="email" name="email" placeholder="you@yourlab.com" autoComplete="email" value={formData.email} onChange={handleChange} />
-                    </div>
-                    {errors.email && <span style={errStyle}>{errors.email}</span>}
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="password">Password</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="11" width="16" height="10" rx="2" />
-                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                      </svg>
-                      <input type={showPassword ? "text" : "password"} id="password" name="password" placeholder="Enter your password" autoComplete="current-password" value={formData.password} onChange={handleChange} />
-                      <button type="button" className="toggle" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"}>
-                        {EyeIcon}
-                      </button>
-                    </div>
-                    {errors.password && <span style={errStyle}>{errors.password}</span>}
-                  </div>
-
-                  <div className="field-row">
-                    <label className="remember">
-                      <input type="checkbox" name="remember" /> Keep me signed in
-                    </label>
-                    <a className="link-accent" href="mailto:hello@procurewide.com?subject=Password%20reset">
-                      Forgot password?
-                    </a>
-                  </div>
-
-                  <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
-                    {loading ? "Signing in…" : "Sign in"}
-                    {!loading && (
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M5 12h14" />
-                        <path d="M13 6l6 6-6 6" />
-                      </svg>
-                    )}
-                  </button>
-                </form>
-
-                <div className="auth-or">No account yet?</div>
-                <a className="btn btn-secondary btn-lg btn-block" href="/submit-order">
-                  Get pricing — submit an example order
-                </a>
-                <p className="auth-switch">
-                  Have a company invite key?{" "}
-                  <a role="button" tabIndex={0} onClick={switchMode} onKeyDown={(e) => e.key === "Enter" && switchMode()} style={{ cursor: "pointer" }}>
-                    Create your account
-                  </a>
-                </p>
-              </>
-            ) : (
-              <>
-                <span className="eyebrow">Get started</span>
-                <h1>Create your account</h1>
-                <p className="sub">Use the signup key your company received from ProcureWide.</p>
-
-                <form className="auth-form" onSubmit={handleSignup} noValidate>
-                  <div className="field">
-                    <label htmlFor="name">Full name</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-                        <circle cx="12" cy="7" r="4" />
-                      </svg>
-                      <input type="text" id="name" name="name" placeholder="Jane Doe" value={formData.name} onChange={handleChange} />
-                    </div>
-                    {errors.name && <span style={errStyle}>{errors.name}</span>}
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="email">Work email</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="3" y="5" width="18" height="14" rx="2" />
-                        <path d="m3 7 9 6 9-6" />
-                      </svg>
-                      <input type="email" id="email" name="email" placeholder="you@yourlab.com" autoComplete="email" value={formData.email} onChange={handleChange} />
-                    </div>
-                    {errors.email && <span style={errStyle}>{errors.email}</span>}
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="companyKey">Company signup key</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M12.7 11.3a4 4 0 1 0-5.4 5.4l-3.3 3.3 2 2 1.4-1.4 1.4 1.4 1.4-1.4 1.4 1.4 1.5-1.5-4-4" />
-                        <circle cx="16" cy="8" r="2" />
-                      </svg>
-                      <input type="text" id="companyKey" name="companyKey" placeholder="Enter your company key" value={formData.companyKey} onChange={handleChange} />
-                    </div>
-                    {errors.companyKey && <span style={errStyle}>{errors.companyKey}</span>}
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="password">Password</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="11" width="16" height="10" rx="2" />
-                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                      </svg>
-                      <input type={showPassword ? "text" : "password"} id="password" name="password" placeholder="Create a password" autoComplete="new-password" value={formData.password} onChange={handleChange} />
-                      <button type="button" className="toggle" onClick={() => setShowPassword((s) => !s)} aria-label={showPassword ? "Hide password" : "Show password"}>
-                        {EyeIcon}
-                      </button>
-                    </div>
-                    {errors.password && <span style={errStyle}>{errors.password}</span>}
-                  </div>
-
-                  <div className="field">
-                    <label htmlFor="confirmPassword">Confirm password</label>
-                    <div className="input">
-                      <svg className="lead-ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="4" y="11" width="16" height="10" rx="2" />
-                        <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-                      </svg>
-                      <input type={showPassword ? "text" : "password"} id="confirmPassword" name="confirmPassword" placeholder="Re-enter your password" autoComplete="new-password" value={formData.confirmPassword} onChange={handleChange} />
-                    </div>
-                    {errors.confirmPassword && <span style={errStyle}>{errors.confirmPassword}</span>}
-                  </div>
-
-                  <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={loading}>
-                    {loading ? "Creating…" : "Create account"}
-                  </button>
-                </form>
-
-                <p className="auth-switch">
-                  Already have an account?{" "}
-                  <a role="button" tabIndex={0} onClick={switchMode} onKeyDown={(e) => e.key === "Enter" && switchMode()} style={{ cursor: "pointer" }}>
-                    Sign in
-                  </a>
-                </p>
-              </>
-            )}
-          </div>
-        </main>
-      </div>
+        </div>
+      </footer>
     </div>
   );
-};
-
-export default Auth;
+}
