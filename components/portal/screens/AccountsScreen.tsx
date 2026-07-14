@@ -5,8 +5,8 @@ import { useRouter } from "next/navigation";
 import { PW, SLDS_BLUE } from "@/lib/portal/pw";
 import { PageHeader, SectionCard, AppButton, EmptyState, Icon, Toast } from "@/components/portal/kit";
 import { money } from "@/lib/portal/pricing";
-import { setActingCompanyAction, createAccountAction, updateAccountAction, mintSignupKeyAction, uploadAccountLogoAction, removeAccountLogoAction } from "@/lib/portal/actions";
-import type { PwAccount } from "@/lib/portal/data";
+import { setActingCompanyAction, createAccountAction, updateAccountAction, mintSignupKeyAction, uploadAccountLogoAction, removeAccountLogoAction, addUserToAccountAction, resetUserPasswordAction, removeUserAction } from "@/lib/portal/actions";
+import type { PwAccount, PwAccountMember } from "@/lib/portal/data";
 
 function AccountAvatar({ account, size = 30 }: { account: PwAccount; size?: number }) {
   const [failed, setFailed] = React.useState(false);
@@ -128,15 +128,70 @@ function AccountForm({
   );
 }
 
-export default function AccountsScreen({
-  accounts, actingCompanyId, ownCompanyId,
+function UsersPanel({
+  account, members, run,
 }: {
-  accounts: PwAccount[]; actingCompanyId: string | null; ownCompanyId: string | null;
+  account: PwAccount; members: PwAccountMember[]; run: (fn: () => Promise<void>, ok: string) => void;
+}) {
+  const [email, setEmail] = React.useState("");
+  const [name, setName] = React.useState("");
+  const [pw, setPw] = React.useState("");
+  return (
+    <div>
+      <label style={lbl}>People with a login to {account.name}</label>
+      <div style={{ border: `1px solid ${PW.line}`, borderRadius: 4, overflow: "hidden", marginBottom: 14, background: PW.white }}>
+        {members.length === 0 ? (
+          <div style={{ padding: "12px 14px", fontFamily: PW.sans, fontSize: 12.5, color: PW.mute }}>No users yet — add the first one below.</div>
+        ) : (
+          members.map((m) => (
+            <div key={m.id} style={{ display: "flex", alignItems: "center", gap: 10, padding: "9px 14px", borderBottom: `1px solid ${PW.line}` }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontFamily: PW.sans, fontSize: 13, fontWeight: 600, color: PW.ink }}>{m.username || m.email}</div>
+                <div style={{ fontFamily: PW.mono, fontSize: 11.5, color: PW.mute }}>{m.email}{m.role === "app_admin" ? " · admin" : ""}</div>
+              </div>
+              <AppButton variant="ghost" size="sm" onClick={() => {
+                const np = window.prompt(`New password for ${m.email} (min 6 chars):`);
+                if (np) run(async () => { await resetUserPasswordAction(m.id, np); }, "Password reset");
+              }}>Reset password</AppButton>
+              <AppButton variant="ghost" size="sm" icon="trash" onClick={() => {
+                if (window.confirm(`Remove ${m.email}? Their login is deleted.`)) run(async () => { await removeUserAction(m.id); }, "User removed");
+              }} />
+            </div>
+          ))
+        )}
+      </div>
+
+      <label style={lbl}>Add a user to {account.name}</label>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          run(async () => { await addUserToAccountAction(account.id, { email, password: pw, name }); }, `Added ${email}`);
+          setEmail(""); setName(""); setPw("");
+        }}
+        style={{ display: "grid", gridTemplateColumns: "1.4fr 1fr 1fr auto", gap: 10, alignItems: "end" }}
+      >
+        <div><label style={{ ...lbl, textTransform: "none", fontSize: 10.5 }}>Email</label><input style={field} value={email} onChange={(e) => setEmail(e.target.value)} placeholder="person@lab.com" /></div>
+        <div><label style={{ ...lbl, textTransform: "none", fontSize: 10.5 }}>Name (optional)</label><input style={field} value={name} onChange={(e) => setName(e.target.value)} placeholder="Jane Doe" /></div>
+        <div><label style={{ ...lbl, textTransform: "none", fontSize: 10.5 }}>Temp password</label><input style={field} value={pw} onChange={(e) => setPw(e.target.value)} placeholder="min 6 chars" /></div>
+        <AppButton variant="primary" size="sm" type="submit">Add user</AppButton>
+      </form>
+      <p style={{ margin: "8px 0 0", fontFamily: PW.sans, fontSize: 11.5, color: PW.mute }}>
+        They can log in immediately at the site&apos;s Log in with this email + password. They&apos;re a member of {account.name} only.
+      </p>
+    </div>
+  );
+}
+
+export default function AccountsScreen({
+  accounts, members, actingCompanyId, ownCompanyId,
+}: {
+  accounts: PwAccount[]; members: Record<string, PwAccountMember[]>; actingCompanyId: string | null; ownCompanyId: string | null;
 }) {
   const router = useRouter();
   const [pending, startTransition] = React.useTransition();
   const [adding, setAdding] = React.useState(false);
   const [editing, setEditing] = React.useState<string | null>(null);
+  const [usersFor, setUsersFor] = React.useState<string | null>(null);
   const [keyFor, setKeyFor] = React.useState<string | null>(null);
   const [keyVal, setKeyVal] = React.useState("");
 
@@ -225,10 +280,17 @@ export default function AccountsScreen({
                       <AppButton variant={isHere ? "secondary" : "primary"} size="sm" onClick={() => open(a)}>
                         {isHere ? "Re-open" : "Open"}
                       </AppButton>
-                      <AppButton variant="secondary" size="sm" onClick={() => { setEditing(editing === a.id ? null : a.id); setKeyFor(null); }}>Edit</AppButton>
-                      <AppButton variant="ghost" size="sm" onClick={() => { setKeyFor(keyFor === a.id ? null : a.id); setEditing(null); setKeyVal(""); }}>Key</AppButton>
+                      <AppButton variant="secondary" size="sm" onClick={() => { setUsersFor(usersFor === a.id ? null : a.id); setEditing(null); setKeyFor(null); }}>Users</AppButton>
+                      <AppButton variant="secondary" size="sm" onClick={() => { setEditing(editing === a.id ? null : a.id); setUsersFor(null); setKeyFor(null); }}>Edit</AppButton>
+                      <AppButton variant="ghost" size="sm" onClick={() => { setKeyFor(keyFor === a.id ? null : a.id); setEditing(null); setUsersFor(null); setKeyVal(""); }}>Key</AppButton>
                     </div>
                   </div>
+
+                  {usersFor === a.id && (
+                    <div style={{ padding: "16px 16px 20px", background: "#FAFBF7", borderBottom: `1px solid ${PW.line}` }}>
+                      <UsersPanel account={a} members={members[a.id] || []} run={run} />
+                    </div>
+                  )}
 
                   {editing === a.id && (
                     <div style={{ padding: "16px 16px 20px", background: "#FAFBF7", borderBottom: `1px solid ${PW.line}` }}>

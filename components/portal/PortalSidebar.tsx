@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import React from "react";
 import { PW, SLDS_BLUE } from "@/lib/portal/pw";
 import { Icon, ObjIcon } from "./kit";
-import { money0 } from "@/lib/portal/pricing";
 import { signOutAction } from "@/lib/portal/actions";
 
 const SIDE_NAV: { sec?: string; items: { href: string; label: string; icon: string; cart?: boolean }[] }[] = [
@@ -69,8 +68,8 @@ function NavRow({ href, label, icon, isActive, count, cart }: {
   );
 }
 
-export default function PortalSidebar({ cartCount, lowCount, savedQtr, account, isAdmin = false, isActing = false }: {
-  cartCount: number; lowCount: number; savedQtr: number;
+export default function PortalSidebar({ cartCount, lowCount, account, isAdmin = false, isActing = false }: {
+  cartCount: number; lowCount: number;
   account: { name: string; initials: string; plan: string; quarter: string; logoUrl?: string | null };
   isAdmin?: boolean;
   isActing?: boolean;
@@ -191,11 +190,6 @@ export default function PortalSidebar({ cartCount, lowCount, savedQtr, account, 
             </div>
           </div>
         </div>
-        <div style={{ marginTop: 9, paddingTop: 9, borderTop: `1px solid ${PW.line}`, display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-          <span style={{ fontFamily: PW.sans, fontSize: 11, color: PW.mute }}>Guaranteed savings</span>
-          <span style={{ fontFamily: PW.mono, fontSize: 13, fontWeight: 600, color: "#0A7048" }}>{money0(savedQtr)}</span>
-        </div>
-
         <button
           onClick={() => startLogout(() => signOutAction())}
           disabled={loggingOut}

@@ -11,8 +11,9 @@ export type PortalContext = {
   userId: string;
   companyId: string | null; // the account the portal is CURRENTLY operating on
   ownCompanyId: string | null; // the admin's own company (if any)
-  isPwAdmin: boolean; // ProcureWide operator
-  isAdmin: boolean; // app_admin or operator -> may manage/switch accounts
+  isPwAdmin: boolean; // ProcureWide operator (document templates)
+  isAdmin: boolean; // may manage/switch client accounts (== master admin)
+  isMasterAdmin: boolean; // app_admin — the only role that manages accounts
   actingCompanyId: string | null; // set when an admin is viewing someone else's account
   account: { name: string; initials: string; plan: string; quarter: string; logoUrl: string | null };
 };
@@ -32,7 +33,11 @@ export async function resolvePortalIdentity() {
   const { data: me } = await supabase.from("profiles").select("is_pw_admin").eq("id", user.id).maybeSingle();
   const isPwAdmin = !!me?.is_pw_admin;
   const role = (profile?.role as string) ?? "";
-  const isAdmin = role === "app_admin" || isPwAdmin;
+  // "Master admin" = app_admin. Only they manage client accounts / add users /
+  // switch between accounts. (pw_admin is a separate, narrower operator flag
+  // for the document master templates.)
+  const isMasterAdmin = role === "app_admin";
+  const isAdmin = isMasterAdmin;
   const ownCompanyId = (profile?.company_id as string | null) ?? null;
 
   let actingCompanyId: string | null = null;
@@ -50,6 +55,7 @@ export async function resolvePortalIdentity() {
     userId: user.id,
     isPwAdmin,
     isAdmin,
+    isMasterAdmin,
     ownCompanyId,
     actingCompanyId,
     companyId: actingCompanyId ?? ownCompanyId,
@@ -85,6 +91,7 @@ export async function getPortalContext(): Promise<PortalContext> {
     ownCompanyId: id.ownCompanyId,
     isPwAdmin: id.isPwAdmin,
     isAdmin: id.isAdmin,
+    isMasterAdmin: id.isMasterAdmin,
     actingCompanyId: id.actingCompanyId,
     account: { name, initials: initialsOf(name), plan, quarter: quarterLabel(), logoUrl: companyLogoUrl(id.companyId) },
   };
@@ -105,10 +112,38 @@ export type PwAccount = {
   spend: number;
 };
 
-/** Every client account + live stats. Admin only. */
+export type PwAccountMember = { id: string; email: string; username: string | null; role: string };
+
+/** Members of every account (email lives in auth, so use the admin client). Master admin only. */
+export async function fetchAccountMembers(): Promise<Record<string, PwAccountMember[]>> {
+  const id = await resolvePortalIdentity();
+  if (!id.isMasterAdmin) return {};
+  const { supabaseAdmin } = await import("@/lib/supabase/admin");
+
+  const [{ data: profs }, { data: users }] = await Promise.all([
+    supabaseAdmin.from("profiles").select("id, company_id, username, role"),
+    supabaseAdmin.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+  ]);
+  const emailById: Record<string, string> = {};
+  (users?.users || []).forEach((u) => (emailById[u.id] = u.email || ""));
+
+  const out: Record<string, PwAccountMember[]> = {};
+  (profs || []).forEach((p) => {
+    if (!p.company_id) return;
+    (out[p.company_id] = out[p.company_id] || []).push({
+      id: p.id,
+      email: emailById[p.id] || "",
+      username: p.username,
+      role: p.role,
+    });
+  });
+  return out;
+}
+
+/** Every client account + live stats. Master admin only. */
 export async function fetchAccounts(): Promise<PwAccount[]> {
   const id = await resolvePortalIdentity();
-  if (!id.isAdmin) return [];
+  if (!id.isMasterAdmin) return [];
   const sb = id.supabase;
 
   const [{ data: comps }, { data: profs }, { data: orders }, { data: inv }, { data: cart }, { data: spend }] =

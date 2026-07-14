@@ -25,10 +25,10 @@ async function requireCompany() {
   return { supabase: id.supabase, userId: id.userId, companyId: id.companyId };
 }
 
-/** app_admin or ProcureWide operator — may manage/switch client accounts. */
+/** Master admin (app_admin) — the only role that manages client accounts. */
 async function requirePortalAdmin() {
   const id = await resolvePortalIdentity();
-  if (!id.isAdmin) throw new Error("Admin access required.");
+  if (!id.isMasterAdmin) throw new Error("Master-admin access required.");
   return id;
 }
 
@@ -489,6 +489,58 @@ export async function createAccountAction(input: {
 
   revalidatePath("/app", "layout");
   return { id: company.id, name: company.name };
+}
+
+/**
+ * Add a user (login) to a client account. Master admin only.
+ * Goes through the real signup path — mint a one-time key for the company, use
+ * it to create the auth user (so the profile is created with the right company
+ * + member role), then burn the key. The user can log in immediately.
+ */
+export async function addUserToAccountAction(companyId: string, input: { email: string; password: string; name?: string }) {
+  await requirePortalAdmin();
+  const email = input.email.trim().toLowerCase();
+  if (!email) throw new Error("Enter an email.");
+  if ((input.password || "").length < 6) throw new Error("Password must be at least 6 characters.");
+
+  const tmp = "TMP-" + createHash("sha256").update(companyId + email + Date.now()).digest("hex").slice(0, 20);
+  const { data: key, error: kerr } = await supabaseAdmin
+    .from("signup_keys")
+    .insert({ company_id: companyId, key_hash: "\\x" + createHash("sha256").update(tmp).digest("hex"), key_type: "company", is_active: true, max_uses: 1, uses: 0 })
+    .select("id")
+    .single();
+  if (kerr) throw new Error(kerr.message);
+
+  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password: input.password,
+    email_confirm: true,
+    user_metadata: { full_name: input.name?.trim() || email.split("@")[0], signup_key: tmp },
+  });
+  await supabaseAdmin.from("signup_keys").delete().eq("id", key.id);
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error("Could not create the user.");
+
+  revalidatePath("/app", "layout");
+  return { id: data.user.id, email };
+}
+
+/** Reset a member's password. Master admin only. */
+export async function resetUserPasswordAction(userId: string, password: string) {
+  await requirePortalAdmin();
+  if ((password || "").length < 6) throw new Error("Password must be at least 6 characters.");
+  const { error } = await supabaseAdmin.auth.admin.updateUserById(userId, { password, email_confirm: true });
+  if (error) throw new Error(error.message);
+  revalidatePath("/app", "layout");
+}
+
+/** Remove a user entirely. Master admin only. (Deletes the auth user; the
+ *  profile row cascades.) */
+export async function removeUserAction(userId: string) {
+  await requirePortalAdmin();
+  const { error } = await supabaseAdmin.auth.admin.deleteUser(userId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/app", "layout");
 }
 
 export async function updateAccountAction(
